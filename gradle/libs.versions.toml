@@ -12,6 +12,7 @@ spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" 
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 jspecify = { module = "org.jspecify:jspecify" }
+mockito-core = { module = "org.mockito:mockito-core" }
 
 # Compiler plugins.
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
