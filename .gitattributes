@@ -1,0 +1,9 @@
+# Normalize all text files to LF in the repository and in the working tree,
+# regardless of the local core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows batch scripts break when run with LF line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.jar binary
