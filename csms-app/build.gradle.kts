@@ -12,6 +12,7 @@ dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
 
     implementation(libs.spring.boot.starter.webmvc)
+    implementation(libs.spring.boot.starter.actuator)
     implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
