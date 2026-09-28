@@ -10,6 +10,7 @@ dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
 
     implementation(libs.spring.boot.starter)
+    implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.test)
     testRuntimeOnly(libs.junit.platform.launcher)

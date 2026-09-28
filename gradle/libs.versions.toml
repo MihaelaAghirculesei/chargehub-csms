@@ -2,15 +2,24 @@
 spring-boot = "4.1.1"
 spotless = "8.10.3"
 google-java-format = "1.36.1"
+errorprone = "2.50.0"
+errorprone-plugin = "5.1.1"
+nullaway = "0.14.2"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+jspecify = { module = "org.jspecify:jspecify" }
+
+# Compiler plugins.
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
 
 # Gradle plugins applied by the build-logic convention plugins.
 spotless-gradle-plugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
+errorprone-gradle-plugin = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorprone-plugin" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
