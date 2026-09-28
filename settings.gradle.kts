@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "chargehub-csms"
 
-include("ocpp-protocol", "charge-point-simulator")
+include("ocpp-protocol", "csms-app", "charge-point-simulator")
