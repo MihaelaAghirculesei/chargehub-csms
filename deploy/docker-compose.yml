@@ -20,5 +20,34 @@ services:
       retries: 10
       start_period: 10s
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+    # Development mode with its built-in storage: the realm will be versioned as code, so the
+    # container state is disposable.
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?copy deploy/.env.example to deploy/.env}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      # 8080 is taken by the application.
+      - "127.0.0.1:8180:8080"
+    healthcheck:
+      # The image ships neither curl nor wget; bash can open a TCP connection by itself.
+      # /health/ready is served on the management port 9000.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000
+          && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          && read -r status_line <&3
+          && [[ $$status_line == *" 200 "* ]]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
 volumes:
   pgdata:
