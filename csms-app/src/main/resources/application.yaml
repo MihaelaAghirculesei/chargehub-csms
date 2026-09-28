@@ -11,3 +11,11 @@ logging:
       # JSON by default so containers and CI need no configuration; the dev profile switches back
       # to readable text.
       console: ecs
+
+management:
+  endpoint:
+    health:
+      # Liveness and readiness are enabled by default only on Kubernetes. Docker Compose and load
+      # balancers need them too: readiness is false while starting and while shutting down.
+      probes:
+        enabled: true
