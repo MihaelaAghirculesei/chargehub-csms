@@ -1,11 +1,16 @@
 [versions]
 spring-boot = "4.1.1"
+spotless = "8.10.3"
+google-java-format = "1.36.1"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+# Gradle plugins applied by the build-logic convention plugins.
+spotless-gradle-plugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
