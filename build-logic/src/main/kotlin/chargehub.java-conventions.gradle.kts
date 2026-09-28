@@ -1,6 +1,9 @@
 plugins {
     java
+    id("com.diffplug.spotless")
 }
+
+val libs = the<VersionCatalogsExtension>().named("libs")
 
 java {
     toolchain {
@@ -16,4 +19,10 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        googleJavaFormat(libs.findVersion("google-java-format").get().requiredVersion)
+    }
 }
