@@ -3,6 +3,7 @@ import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     java
+    jacoco
     id("com.diffplug.spotless")
     id("net.ltgt.errorprone")
 }
@@ -45,6 +46,22 @@ tasks.named<JavaCompile>("compileTestJava") {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+jacoco {
+    toolVersion = libs.findVersion("jacoco").get().requiredVersion
+}
+
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    reports {
+        // XML for CI and code quality services, HTML for people.
+        xml.required = true
+        html.required = true
+    }
 }
 
 spotless {

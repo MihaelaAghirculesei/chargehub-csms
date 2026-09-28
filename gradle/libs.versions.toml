@@ -5,6 +5,7 @@ google-java-format = "1.36.1"
 errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
+jacoco = "0.8.15"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
