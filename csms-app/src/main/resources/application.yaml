@@ -4,3 +4,10 @@ spring:
   threads:
     virtual:
       enabled: true
+
+logging:
+  structured:
+    format:
+      # JSON by default so containers and CI need no configuration; the dev profile switches back
+      # to readable text.
+      console: ecs
