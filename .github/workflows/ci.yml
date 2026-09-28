@@ -5,10 +5,21 @@ on:
   push:
     branches: [main]
 
+# The workflow only reads the repository; a leaked token cannot push or edit issues.
+permissions:
+  contents: read
+
+# A new push to a pull request makes the running build obsolete. Builds on main
+# always complete so every commit on main has a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     name: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
