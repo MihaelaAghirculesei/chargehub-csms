@@ -1,0 +1,11 @@
+[versions]
+spring-boot = "4.1.1"
+
+[libraries]
+# Versions come from the Spring Boot BOM.
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
