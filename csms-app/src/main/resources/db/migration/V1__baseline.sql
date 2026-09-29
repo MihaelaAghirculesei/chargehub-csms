@@ -1,0 +1,2 @@
+-- Starting point of the versioned schema. Tables arrive with the modules that own them.
+-- Applied migrations are never edited: every change is a new migration.

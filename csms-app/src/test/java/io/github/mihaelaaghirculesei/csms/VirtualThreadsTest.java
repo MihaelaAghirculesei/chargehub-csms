@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
-@Import(VirtualThreadsTest.ThreadProbe.class)
+@Import({TestcontainersConfiguration.class, VirtualThreadsTest.ThreadProbe.class})
 class VirtualThreadsTest {
 
   @Autowired private RestTestClient client;

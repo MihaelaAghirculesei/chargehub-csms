@@ -13,10 +13,17 @@ dependencies {
 
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.flyway)
+    // Without it Flyway fails with "Unsupported Database: PostgreSQL 18".
+    runtimeOnly(libs.flyway.database.postgresql)
+    runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.snakeyaml)
+    testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
     testRuntimeOnly(libs.junit.platform.launcher)
 
     mockitoAgent(platform(SpringBootPlugin.BOM_COORDINATES))
