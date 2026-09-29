@@ -3,8 +3,11 @@ package io.github.mihaelaaghirculesei.csms;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -36,9 +39,24 @@ class WebSocketSubprotocolTest {
     }
   }
 
-  private WebSocketSession connect(String subprotocol) throws Exception {
+  /**
+   * Spring completes the handshake without a subprotocol and keeps the connection open. OCPP-J
+   * expects the server to close it right away; the Phase 1 endpoint has to do that itself.
+   */
+  @ParameterizedTest
+  @ValueSource(strings = {"ocpp2.0.1", "none"})
+  void keepsConnectionOpenWithoutSubprotocolWhenNoneMatches(String offered) throws Exception {
+    try (WebSocketSession session = offered.equals("none") ? connect() : connect(offered)) {
+      assertThat(session.getAcceptedProtocol()).isEmpty();
+      assertThat(session.isOpen()).isTrue();
+    }
+  }
+
+  private WebSocketSession connect(String... subprotocols) throws Exception {
     WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-    headers.setSecWebSocketProtocol(subprotocol);
+    if (subprotocols.length > 0) {
+      headers.setSecWebSocketProtocol(List.of(subprotocols));
+    }
     return new StandardWebSocketClient()
         .execute(
             new TextWebSocketHandler(),
