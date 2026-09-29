@@ -7,6 +7,16 @@ errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
 jacoco = "0.8.15"
 springdoc = "3.1.1"
+# Must equal the Jackson 3 version managed by the Spring Boot BOM; verifyJacksonAlignment checks it.
+# See docs/adr/0006.
+jackson = "3.1.5"
+# 3.0.7 needs Jackson 3.2; stays on the 3.1 line until Spring Boot moves (docs/adr/0006).
+json-schema-validator = "3.0.6"
+# ocpp-protocol has no Spring Boot BOM: it stays on JUnit Platform 1.x for jqwik.
+junit5 = "5.14.4"
+jqwik = "1.10.1"
+# Same version as the Spring Boot BOM.
+assertj = "3.27.7"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
@@ -25,6 +35,14 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 jspecify = { module = "org.jspecify:jspecify" }
 mockito-core = { module = "org.mockito:mockito-core" }
 snakeyaml = { module = "org.yaml:snakeyaml" }
+
+# ocpp-protocol, outside the Spring Boot BOM.
+jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
+junit5-bom = { module = "org.junit:junit-bom", version.ref = "junit5" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 
 # Compiler plugins.
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }

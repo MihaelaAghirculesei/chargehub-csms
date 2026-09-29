@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "urn:chargehub:test:BootNotificationRequest",
+  "title": "BootNotificationRequest",
+  "description": "Test subset of the OCPP 1.6 BootNotification.req schema, written for the compatibility spike.",
+  "type": "object",
+  "properties": {
+    "chargePointVendor": { "type": "string", "maxLength": 20 },
+    "chargePointModel": { "type": "string", "maxLength": 20 }
+  },
+  "additionalProperties": false,
+  "required": ["chargePointVendor", "chargePointModel"]
+}
