@@ -15,6 +15,7 @@ spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-bo
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 jspecify = { module = "org.jspecify:jspecify" }
 mockito-core = { module = "org.mockito:mockito-core" }
+snakeyaml = { module = "org.yaml:snakeyaml" }
 
 # Compiler plugins.
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
