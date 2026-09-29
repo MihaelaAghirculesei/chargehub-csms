@@ -6,6 +6,7 @@ errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
 jacoco = "0.8.15"
+springdoc = "3.1.1"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
@@ -16,6 +17,7 @@ spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-st
 spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
 postgresql = { module = "org.postgresql:postgresql" }
+springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
