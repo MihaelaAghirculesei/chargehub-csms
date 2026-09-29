@@ -69,3 +69,38 @@ spotless {
         googleJavaFormat(libs.findVersion("google-java-format").get().requiredVersion)
     }
 }
+
+// Every module must resolve Jackson 3 to the catalog version, which equals the Spring Boot one.
+// Without this, a library asking for a newer Jackson line silently moves the whole application.
+// See docs/adr/0006.
+val expectedJackson = libs.findVersion("jackson").get().requiredVersion
+val resolvedJackson =
+    configurations.named("runtimeClasspath").flatMap { it.incoming.artifacts.resolvedArtifacts }.map { artifacts ->
+        artifacts
+            .mapNotNull { it.id.componentIdentifier as? ModuleComponentIdentifier }
+            .filter { it.group == "tools.jackson.core" && it.module == "jackson-databind" }
+            .map { it.version }
+            .toSortedSet()
+    }
+
+val verifyJacksonAlignment =
+    tasks.register("verifyJacksonAlignment") {
+        group = "verification"
+        description = "Fails when jackson-databind does not resolve to the catalog version."
+        val expected = expectedJackson
+        val resolved = resolvedJackson
+        val projectPath = project.path
+        doLast {
+            val versions = resolved.get()
+            if (versions.isNotEmpty() && versions != sortedSetOf(expected)) {
+                throw GradleException(
+                    "$projectPath resolves jackson-databind $versions, expected $expected. " +
+                        "Upgrade Jackson together with Spring Boot, see docs/adr/0006.",
+                )
+            }
+        }
+    }
+
+tasks.named("check") {
+    dependsOn(verifyJacksonAlignment)
+}
