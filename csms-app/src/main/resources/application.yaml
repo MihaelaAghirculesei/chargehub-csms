@@ -4,6 +4,17 @@ spring:
   threads:
     virtual:
       enabled: true
+  jpa:
+    # No lazy loading during view rendering: queries stay inside the transaction that needs them.
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          # Instants are written in UTC whatever the JVM default time zone is.
+          time_zone: UTC
 
 logging:
   structured:
