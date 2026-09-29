@@ -12,5 +12,6 @@ dependencies {
     testImplementation(platform(libs.junit5.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.jqwik)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

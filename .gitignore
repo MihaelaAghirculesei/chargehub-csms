@@ -29,3 +29,6 @@ Thumbs.db
 # Local secrets
 .env
 !.env.example
+
+# jqwik stores failed samples here to replay them first
+.jqwik-database
