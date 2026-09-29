@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(platform(libs.spring.modulith.bom))
+    testImplementation(libs.spring.modulith.starter.test)
     testImplementation(libs.snakeyaml)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
