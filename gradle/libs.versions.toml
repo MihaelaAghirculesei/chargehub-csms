@@ -11,6 +11,12 @@ jacoco = "0.8.15"
 # Versions come from the Spring Boot BOM.
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+postgresql = { module = "org.postgresql:postgresql" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 jspecify = { module = "org.jspecify:jspecify" }

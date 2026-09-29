@@ -6,9 +6,11 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 class JacksonTest {
 
   record Sample(String id, Instant at) {}

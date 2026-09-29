@@ -9,10 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class StructuredLoggingTest {
 

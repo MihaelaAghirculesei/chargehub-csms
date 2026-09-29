@@ -9,9 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.convention.TestBean;
 
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 class ClockOverrideTest {
 
   private static final Instant FIXED = Instant.parse("2026-03-29T00:30:00Z");

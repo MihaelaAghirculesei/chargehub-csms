@@ -1,3 +1,11 @@
+spring:
+  datasource:
+    # The PostgreSQL service from deploy/docker-compose.yml. Other environments pass the connection
+    # through SPRING_DATASOURCE_* variables; the default profile has no database address on purpose.
+    url: jdbc:postgresql://localhost:5432/csms
+    username: csms
+    password: ${POSTGRES_PASSWORD}
+
 logging:
   structured:
     format:
