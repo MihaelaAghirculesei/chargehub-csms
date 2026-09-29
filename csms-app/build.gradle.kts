@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.snakeyaml)
     testRuntimeOnly(libs.junit.platform.launcher)
 
     mockitoAgent(platform(SpringBootPlugin.BOM_COORDINATES))
@@ -23,6 +24,12 @@ dependencies {
 }
 
 tasks.test {
+    // Tests take container images from the compose file so local runs and tests cannot drift apart.
+    // Declared as an input so changing an image reruns the tests.
+    val composeFile = rootProject.file("deploy/docker-compose.yml")
+    inputs.file(composeFile).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("chargehub.compose-file", composeFile.absolutePath)
+
     // Mockito otherwise attaches itself at runtime, which the JDK warns about and will disallow.
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-javaagent:${mockitoAgent.singleFile}") })
 }
