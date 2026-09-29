@@ -10,3 +10,4 @@ Why the project looks the way it does. How these records work is described in
 | [0003](0003-ocpp-1-6j-as-first-protocol-version.md) | OCPP 1.6J as the first protocol version | Accepted |
 | [0004](0004-gradle-multi-module-layout.md) | Gradle multi-module layout | Accepted |
 | [0005](0005-jackson-2-only-inside-springdoc.md) | Allow Jackson 2 only inside springdoc | Accepted |
+| [0006](0006-align-jackson-on-the-spring-boot-version.md) | Align Jackson across modules on the Spring Boot version | Accepted |
