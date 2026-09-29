@@ -26,6 +26,8 @@ dependencies {
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(platform(libs.spring.modulith.bom))
     testImplementation(libs.spring.modulith.starter.test)
+    // ArchUnit core inside Jupiter tests: the archunit-junit5 engine is built on JUnit Platform 1.x.
+    testImplementation(libs.archunit)
     testImplementation(libs.snakeyaml)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)

@@ -19,6 +19,8 @@ jqwik = "1.10.1"
 assertj = "3.27.7"
 # Spring Modulith is not in the Spring Boot BOM; the 2.1 line matches Spring Boot 4.1.
 spring-modulith = "2.1.1"
+# The version Spring Modulith 2.1.1 is built with; a newer one would replace it under Modulith too.
+archunit = "1.4.2"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
@@ -39,6 +41,7 @@ mockito-core = { module = "org.mockito:mockito-core" }
 snakeyaml = { module = "org.yaml:snakeyaml" }
 spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "spring-modulith" }
 spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
+archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
 
 # ocpp-protocol, outside the Spring Boot BOM.
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
