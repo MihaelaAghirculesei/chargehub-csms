@@ -1,0 +1,89 @@
+version: 2
+
+updates:
+  # Covers the version catalog, build-logic and the Gradle wrapper.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Rome
+    # Gives a bad release time to be pulled before it reaches us. Security updates skip the wait.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      # Jackson and json-schema-validator move with Spring Boot: verifyJacksonAlignment
+      # fails any update that changes only one of them (docs/adr/0006).
+      spring:
+        patterns:
+          - "org.springframework.boot*"
+          - "org.springframework.modulith*"
+          - "tools.jackson*"
+          - "com.networknt*"
+      test:
+        patterns:
+          - "org.junit*"
+          - "net.jqwik*"
+          - "org.assertj*"
+          - "com.tngtech.archunit*"
+      build-tools:
+        patterns:
+          - "com.diffplug.spotless*"
+          - "com.google.googlejavaformat*"
+          - "com.google.errorprone*"
+          - "net.ltgt.gradle*"
+          - "com.uber.nullaway*"
+          - "org.jacoco*"
+    ignore:
+      # A Spring Boot minor or major upgrade is planned work, not a weekly bump.
+      # Spring Modulith follows the Boot line (2.1 goes with Boot 4.1).
+      - dependency-name: "org.springframework.boot*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "org.springframework.modulith*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      # The Jackson minor is the one Spring Boot manages (docs/adr/0006).
+      - dependency-name: "tools.jackson*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      # 3.0.7 needs Jackson 3.2. Remove this when Spring Boot moves to Jackson 3.2 (docs/adr/0006).
+      - dependency-name: "com.networknt:json-schema-validator"
+        versions: [">= 3.0.7"]
+      # Stays on the version Spring Modulith is built with.
+      - dependency-name: "com.tngtech.archunit*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+
+  # Updates the pinned SHAs and their version comments.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Rome
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Updates the tags and digests of the local stack images.
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Rome
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    ignore:
+      # A new PostgreSQL or Keycloak major needs a data migration, so it is planned by hand.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
