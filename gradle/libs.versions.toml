@@ -9,7 +9,7 @@ jacoco = "0.8.15"
 springdoc = "3.1.1"
 # Must equal the Jackson 3 version managed by the Spring Boot BOM; verifyJacksonAlignment checks it.
 # See docs/adr/0006.
-jackson = "3.1.5"
+jackson = "3.1.7"
 # 3.0.7 needs Jackson 3.2; stays on the 3.1 line until Spring Boot moves (docs/adr/0006).
 json-schema-validator = "3.0.6"
 # ocpp-protocol has no Spring Boot BOM: it stays on JUnit Platform 1.x for jqwik.
