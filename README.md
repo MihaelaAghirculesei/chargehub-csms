@@ -71,4 +71,4 @@ PostgreSQL listens on `127.0.0.1:5432`, Keycloak on `127.0.0.1:8180`.
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)
