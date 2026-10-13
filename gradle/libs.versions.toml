@@ -21,6 +21,7 @@ assertj = "3.27.7"
 spring-modulith = "2.1.1"
 # The version Spring Modulith 2.1.1 is built with; a newer one would replace it under Modulith too.
 archunit = "1.4.2"
+sonarqube = "7.5.0.8588"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
@@ -66,3 +67,4 @@ jacoco-agent = { module = "org.jacoco:org.jacoco.agent", version.ref = "jacoco" 
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
