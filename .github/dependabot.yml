@@ -37,6 +37,7 @@ updates:
           - "net.ltgt.gradle*"
           - "com.uber.nullaway*"
           - "org.jacoco*"
+          - "org.sonarqube*"
     ignore:
       # A Spring Boot minor or major upgrade is planned work, not a weekly bump.
       # Spring Modulith follows the Boot line (2.1 goes with Boot 4.1).
