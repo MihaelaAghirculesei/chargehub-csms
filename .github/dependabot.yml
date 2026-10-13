@@ -51,6 +51,12 @@ updates:
       # 3.0.7 needs Jackson 3.2. Remove this when Spring Boot moves to Jackson 3.2 (docs/adr/0006).
       - dependency-name: "com.networknt:json-schema-validator"
         versions: [">= 3.0.7"]
+      # Spotless cannot run 1.37 yet (diffplug/spotless#3126). Remove with #42.
+      - dependency-name: "com.google.googlejavaformat:google-java-format"
+        versions: [">= 1.37.0"]
+      # ocpp-protocol stays on JUnit 5 until the move is planned in #43.
+      - dependency-name: "org.junit*"
+        update-types: ["version-update:semver-major"]
       # Stays on the version Spring Modulith is built with.
       - dependency-name: "com.tngtech.archunit*"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
