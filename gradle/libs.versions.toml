@@ -1,7 +1,7 @@
 [versions]
 spring-boot = "4.1.1"
 spotless = "8.10.3"
-google-java-format = "1.36.1"
+google-java-format = "1.37.0"
 errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
