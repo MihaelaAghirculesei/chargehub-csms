@@ -1,0 +1,24 @@
+name: Task
+description: A planned piece of work, delivered by one pull request.
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What is true once this is done.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why it is needed now. Link related issues, pull requests or ADRs.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checks a reviewer can verify.
+      value: |
+        - [ ]
+    validations:
+      required: true

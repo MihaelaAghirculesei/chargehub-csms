@@ -1,0 +1,30 @@
+name: Bug
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens
+      description: Include the error message or log lines.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit
+      description: The commit SHA or tag where it happens.
