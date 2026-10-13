@@ -1,13 +1,18 @@
-## What
+Closes #
 
-<!-- One or two sentences: what does this PR change. -->
+## Context
 
-## Why
+<!-- What problem or issue this pull request answers. -->
 
-<!-- The reason this change is needed. Link an issue if one exists. -->
+## Decision
 
-## Checklist
+<!-- How it was solved, and why this way. Link an ADR in docs/adr/ if the change needs one. -->
 
-- [ ] `./gradlew build` passes locally
+## How to test
+
+- [ ] `./gradlew build` passes
 - [ ] New or changed behaviour is covered by tests
-- [ ] ADR added or updated in `docs/adr/` if this changes an architectural decision
+
+## Out of scope
+
+<!-- What this pull request does not do on purpose. Link follow-up issues. -->
