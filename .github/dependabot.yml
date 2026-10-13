@@ -44,9 +44,10 @@ updates:
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
       - dependency-name: "org.springframework.modulith*"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
-      # The Jackson minor is the one Spring Boot manages (docs/adr/0006).
+      # Jackson is always the version Spring Boot manages, patches included (docs/adr/0006).
+      # When a Boot patch moves it, verifyJacksonAlignment fails that pull request and the
+      # catalog is aligned there.
       - dependency-name: "tools.jackson*"
-        update-types: ["version-update:semver-minor", "version-update:semver-major"]
       # 3.0.7 needs Jackson 3.2. Remove this when Spring Boot moves to Jackson 3.2 (docs/adr/0006).
       - dependency-name: "com.networknt:json-schema-validator"
         versions: [">= 3.0.7"]
