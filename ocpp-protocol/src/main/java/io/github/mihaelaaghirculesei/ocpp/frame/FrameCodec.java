@@ -74,17 +74,11 @@ public final class FrameCodec {
   public String encode(OcppFrame frame) {
     ArrayNode array = mapper.createArrayNode();
     switch (frame) {
-      case Call call ->
-          array.add(CALL).add(call.messageId()).add(call.action()).add(call.payload());
-      case CallResult result ->
-          array.add(CALL_RESULT).add(result.messageId()).add(result.payload());
-      case CallError error ->
-          array
-              .add(CALL_ERROR)
-              .add(error.messageId())
-              .add(error.errorCode().wireName())
-              .add(error.errorDescription())
-              .add(error.errorDetails());
+      case Call(String id, String action, ObjectNode payload) ->
+          array.add(CALL).add(id).add(action).add(payload);
+      case CallResult(String id, ObjectNode payload) -> array.add(CALL_RESULT).add(id).add(payload);
+      case CallError(String id, ErrorCode code, String description, ObjectNode details) ->
+          array.add(CALL_ERROR).add(id).add(code.wireName()).add(description).add(details);
     }
     return mapper.writeValueAsString(array);
   }
