@@ -16,12 +16,12 @@ dependencies {
     implementation(libs.spring.boot.starter.websocket)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.flyway)
-    // Without it Flyway fails with "Unsupported Database: PostgreSQL 18".
-    runtimeOnly(libs.flyway.database.postgresql)
-    runtimeOnly(libs.postgresql)
     // Brings Jackson 2 through swagger-core; allowed only there, see docs/adr/0005.
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.jspecify)
+    // Without it Flyway fails with "Unsupported Database: PostgreSQL 18".
+    runtimeOnly(libs.flyway.database.postgresql)
+    runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(platform(libs.spring.modulith.bom))
