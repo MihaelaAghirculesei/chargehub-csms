@@ -23,6 +23,7 @@ updates:
           - "org.springframework.modulith*"
           - "tools.jackson*"
           - "com.networknt*"
+          - "org.jspecify*"
       test:
         patterns:
           - "org.junit*"
