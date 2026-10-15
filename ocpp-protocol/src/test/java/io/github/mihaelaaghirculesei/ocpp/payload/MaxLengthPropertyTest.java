@@ -1,7 +1,5 @@
-package io.github.mihaelaaghirculesei.ocpp;
+package io.github.mihaelaaghirculesei.ocpp.payload;
 
-import static io.github.mihaelaaghirculesei.ocpp.BootNotificationSchema.payload;
-import static io.github.mihaelaaghirculesei.ocpp.BootNotificationSchema.validate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -11,8 +9,12 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import net.jqwik.api.Tuple;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 class MaxLengthPropertyTest {
+
+  private final PayloadValidator validator = new PayloadValidator("/schemas/");
 
   /**
    * JSON Schema counts maxLength in Unicode code points, Java String.length() in UTF-16 units. An
@@ -22,7 +24,11 @@ class MaxLengthPropertyTest {
   void acceptsExactlyVendorNamesOfAtMostTwentyCodePoints(@ForAll("vendorNames") String vendor) {
     boolean withinLimit = vendor.codePointCount(0, vendor.length()) <= 20;
 
-    assertThat(validate(payload(vendor, "Simulator X")).isEmpty()).isEqualTo(withinLimit);
+    ObjectNode payload = JsonNodeFactory.instance.objectNode();
+    payload.put("chargePointVendor", vendor).put("chargePointModel", "Simulator X");
+
+    assertThat(validator.validate("BootNotification", PayloadType.REQUEST, payload).isEmpty())
+        .isEqualTo(withinLimit);
   }
 
   /**
