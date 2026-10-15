@@ -1,16 +1,9 @@
 package io.github.mihaelaaghirculesei.csms;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-
-import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.lang.ArchCondition;
-import com.tngtech.archunit.lang.ConditionEvents;
-import com.tngtech.archunit.lang.SimpleConditionEvent;
-import org.jspecify.annotations.NullMarked;
+import io.github.mihaelaaghirculesei.architecture.ArchitectureRules;
 import org.junit.jupiter.api.Test;
 
 class ArchitectureRulesTest {
@@ -26,37 +19,13 @@ class ArchitectureRulesTest {
 
   @Test
   void doesNotUseJackson2Databind() {
-    noClasses()
-        .should()
-        .dependOnClassesThat()
-        .resideInAPackage("com.fasterxml.jackson.databind..")
+    ArchitectureRules.noJackson2Databind()
         .because("Jackson 2 is on the classpath only for springdoc; see docs/adr/0005")
         .check(ALL_CLASSES);
   }
 
   @Test
   void everyProductionPackageIsNullMarked() {
-    classes()
-        .should(resideInNullMarkedPackage())
-        .because(
-            "@NullMarked does not apply to subpackages, and NullAway skips packages without it")
-        .check(PRODUCTION_CLASSES);
-  }
-
-  private static ArchCondition<JavaClass> resideInNullMarkedPackage() {
-    return new ArchCondition<>("reside in a package annotated with @NullMarked") {
-      @Override
-      public void check(JavaClass javaClass, ConditionEvents events) {
-        if (!javaClass.getPackage().isAnnotatedWith(NullMarked.class)) {
-          events.add(
-              SimpleConditionEvent.violated(
-                  javaClass,
-                  javaClass.getName()
-                      + " is in package "
-                      + javaClass.getPackageName()
-                      + ", which has no @NullMarked package-info.java"));
-        }
-      }
-    };
+    ArchitectureRules.everyPackageNullMarked().check(PRODUCTION_CLASSES);
   }
 }
