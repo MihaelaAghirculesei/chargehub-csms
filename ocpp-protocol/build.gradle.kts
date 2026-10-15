@@ -1,6 +1,8 @@
 plugins {
     id("chargehub.java-conventions")
     `java-library`
+    // Shares the architecture rules with the other modules instead of copying them.
+    `java-test-fixtures`
 }
 
 // No Spring Boot BOM here: this module stays framework-free and on JUnit Platform 1.x for jqwik.
@@ -18,4 +20,6 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.jqwik)
     testRuntimeOnly(libs.junit.platform.launcher)
+
+    testFixturesApi(libs.archunit)
 }
