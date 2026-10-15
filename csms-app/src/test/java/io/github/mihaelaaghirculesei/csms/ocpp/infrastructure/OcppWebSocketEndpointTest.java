@@ -60,6 +60,16 @@ class OcppWebSocketEndpointTest {
     assertThat(output.getOut()).contains("Closing connection of CP-LOG", "ocpp2.0.1");
   }
 
+  @Test
+  void doesNotLetTheClientWriteLineBreaksIntoTheLog(CapturedOutput output) throws Exception {
+    Client client = new Client();
+
+    client.connect("CP%0D%0AFORGED", "ocpp2.0.1");
+    client.closed.get(5, TimeUnit.SECONDS);
+
+    assertThat(output.getOut()).contains("Closing connection of CP__FORGED");
+  }
+
   private final class Client extends TextWebSocketHandler {
 
     private final CompletableFuture<CloseStatus> closed = new CompletableFuture<>();

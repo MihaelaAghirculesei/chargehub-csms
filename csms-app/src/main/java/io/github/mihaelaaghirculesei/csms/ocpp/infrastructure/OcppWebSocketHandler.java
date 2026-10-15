@@ -23,9 +23,14 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
   @Override
   public void afterConnectionEstablished(WebSocketSession session) throws IOException {
     if (!SUBPROTOCOL.equals(session.getAcceptedProtocol())) {
-      String chargePointId = chargePointId(session);
+      String chargePointId = loggable(chargePointId(session));
       List<String> offered =
-          session.getHandshakeHeaders().getOrEmpty(WebSocketHttpHeaders.SEC_WEBSOCKET_PROTOCOL);
+          session
+              .getHandshakeHeaders()
+              .getOrEmpty(WebSocketHttpHeaders.SEC_WEBSOCKET_PROTOCOL)
+              .stream()
+              .map(OcppWebSocketHandler::loggable)
+              .toList();
       log.atWarn()
           .addKeyValue("chargePointId", chargePointId)
           .addKeyValue("offeredSubprotocols", offered)
@@ -36,6 +41,12 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
               SUBPROTOCOL);
       session.close(CloseStatus.PROTOCOL_ERROR);
     }
+  }
+
+  // The values come from the client, and the path is already percent-decoded: a line break would
+  // let it write fake lines into a plain-text log.
+  private static String loggable(String value) {
+    return value.replaceAll("[\\r\\n]", "_");
   }
 
   private static String chargePointId(WebSocketSession session) {
