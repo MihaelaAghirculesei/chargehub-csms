@@ -43,10 +43,11 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
     }
   }
 
-  // The values come from the client, and the path is already percent-decoded: a line break would
-  // let it write fake lines into a plain-text log.
+  // The values come from the client, and the path is already percent-decoded: a line break or a
+  // terminal escape would let it forge lines in a plain-text log. Charge point ids and subprotocol
+  // names need nothing outside this allow list.
   private static String loggable(String value) {
-    return value.replaceAll("[\\r\\n]", "_");
+    return value.replaceAll("[^A-Za-z0-9._:-]", "_");
   }
 
   private static String chargePointId(WebSocketSession session) {
