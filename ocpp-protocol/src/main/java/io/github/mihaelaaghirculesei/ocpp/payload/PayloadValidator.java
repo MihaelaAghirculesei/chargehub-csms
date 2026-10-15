@@ -33,6 +33,11 @@ public final class PayloadValidator {
     this.schemaDirectory = schemaDirectory;
   }
 
+  /** Validates against the official OCPP 1.6 schemas shipped with this module. */
+  public static PayloadValidator ocpp16() {
+    return new PayloadValidator("/ocpp16/schemas/");
+  }
+
   /**
    * Returns the reason the payload is refused, or empty if it is valid.
    *

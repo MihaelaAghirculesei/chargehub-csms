@@ -7,3 +7,6 @@
 *.cmd text eol=crlf
 
 *.jar binary
+
+# The official OCPP JSON schemas are kept byte for byte as published (CC BY-ND 4.0).
+ocpp-protocol/src/main/resources/ocpp16/schemas/*.json -text
