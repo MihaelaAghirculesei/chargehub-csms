@@ -1,0 +1,12 @@
+OCPP 1.6 JSON schemas
+
+The *.json files in this directory are the OCPP 1.6 JSON schemas published by the
+Open Charge Alliance in the package "OCPP 1.6 (all files & errata)", errata release 2025-04,
+from https://openchargealliance.org/downloads/.
+
+Copyright 2010-2025 Open Charge Alliance.
+Made available under the Creative Commons Attribution-NoDerivatives 4.0 International
+Public License: https://creativecommons.org/licenses/by-nd/4.0/legalcode
+
+The files are not modified. SHA256SUMS lists their checksums, and a test fails the build if
+any file differs from it.
