@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "urn:chargehub:test:BootNotificationResponse",
+  "title": "BootNotificationResponse",
+  "description": "Test subset of the OCPP 1.6 BootNotification.conf schema, used to test the validator without the official files.",
+  "type": "object",
+  "properties": {
+    "status": { "type": "string", "enum": ["Accepted", "Pending", "Rejected"] },
+    "interval": { "type": "integer" }
+  },
+  "additionalProperties": false,
+  "required": ["status", "interval"]
+}
