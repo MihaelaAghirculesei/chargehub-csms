@@ -13,3 +13,4 @@ Why the project looks the way it does. How these records work is described in
 | [0006](0006-align-jackson-on-the-spring-boot-version.md) | Align Jackson across modules on the Spring Boot version | Accepted |
 | [0007](0007-plain-websocket-for-ocpp.md) | Use plain WebSocket for OCPP, not STOMP | Accepted |
 | [0008](0008-validate-payloads-at-the-protocol-edge.md) | Validate OCPP payloads at the protocol edge | Accepted |
+| [0009](0009-one-outstanding-call-per-charge-point.md) | Refuse a second call while one is outstanding | Accepted |
