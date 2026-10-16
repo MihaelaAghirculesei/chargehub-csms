@@ -1,8 +1,8 @@
 package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
@@ -50,12 +50,9 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
     return value.replaceAll("[^A-Za-z0-9._:-]", "_");
   }
 
-  private static String chargePointId(WebSocketSession session) {
-    URI uri = session.getUri();
-    if (uri == null) {
-      return "unknown";
-    }
-    String path = uri.getPath();
-    return path.substring(path.lastIndexOf('/') + 1);
+  // Always present: ChargePointIdInterceptor refuses the handshake otherwise.
+  static String chargePointId(WebSocketSession session) {
+    return (String)
+        Objects.requireNonNull(session.getAttributes().get(ChargePointIdInterceptor.ATTRIBUTE));
   }
 }

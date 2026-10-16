@@ -1,6 +1,7 @@
 package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import java.net.URI;
@@ -60,14 +61,29 @@ class OcppWebSocketEndpointTest {
     assertThat(output.getOut()).contains("Closing connection of CP-LOG", "ocpp2.0.1");
   }
 
+  /**
+   * The id becomes a map key and a log field, so anything but a plain identifier is refused. Tomcat
+   * already refuses an encoded line break on its own; the case stays to cover the whole path.
+   */
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "CP%0D%0AFORGED",
+        "CP%20ONE",
+        "CP%3CX%3E",
+        "A123456789B123456789C123456789D123456789E12345678"
+      })
+  void refusesMalformedChargePointIdBeforeTheUpgrade(String chargePointId) {
+    assertThatThrownBy(() -> new Client().connect(chargePointId, "ocpp1.6"))
+        .rootCause()
+        .hasMessageContaining("400");
+  }
+
   @Test
-  void doesNotLetTheClientWriteLineBreaksIntoTheLog(CapturedOutput output) throws Exception {
-    Client client = new Client();
-
-    client.connect("CP%0D%0AFORGED", "ocpp2.0.1");
-    client.closed.get(5, TimeUnit.SECONDS);
-
-    assertThat(output.getOut()).contains("Closing connection of CP__FORGED");
+  void acceptsAnIdOfFortyEightCharacters() throws Exception {
+    try (WebSocketSession session = new Client().connect("A".repeat(48), "ocpp1.6")) {
+      assertThat(session.isOpen()).isTrue();
+    }
   }
 
   private final class Client extends TextWebSocketHandler {
