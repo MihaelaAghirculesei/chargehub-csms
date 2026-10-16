@@ -11,6 +11,12 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 @EnableWebSocket
 class OcppWebSocketConfiguration implements WebSocketConfigurer {
 
+  private final ChargePointConnections connections;
+
+  OcppWebSocketConfiguration(ChargePointConnections connections) {
+    this.connections = connections;
+  }
+
   @Override
   public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
     // Without this Spring answers without Sec-WebSocket-Protocol, and many charge points then
@@ -18,7 +24,7 @@ class OcppWebSocketConfiguration implements WebSocketConfigurer {
     DefaultHandshakeHandler handshakeHandler = new DefaultHandshakeHandler();
     handshakeHandler.setSupportedProtocols(OcppWebSocketHandler.SUBPROTOCOL);
     registry
-        .addHandler(new OcppWebSocketHandler(), "/ocpp/*")
+        .addHandler(new OcppWebSocketHandler(connections), "/ocpp/*")
         .setHandshakeHandler(handshakeHandler)
         .addInterceptors(new ChargePointIdInterceptor());
   }
