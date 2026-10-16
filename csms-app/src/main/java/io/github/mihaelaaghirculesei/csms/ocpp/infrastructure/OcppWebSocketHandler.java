@@ -16,6 +16,12 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
 
   private static final Logger log = LoggerFactory.getLogger(OcppWebSocketHandler.class);
 
+  private final ChargePointConnections connections;
+
+  OcppWebSocketHandler(ChargePointConnections connections) {
+    this.connections = connections;
+  }
+
   /**
    * OCPP-J 1.6 asks the server to finish the handshake without a subprotocol and then close at once
    * when it supports none of the offered ones. Spring does the first part, not the second.
@@ -40,7 +46,19 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
               offered,
               SUBPROTOCOL);
       session.close(CloseStatus.PROTOCOL_ERROR);
+      return;
     }
+    String chargePointId = chargePointId(session);
+    if (connections.register(chargePointId, session)) {
+      log.atInfo()
+          .addKeyValue("chargePointId", loggable(chargePointId))
+          .log("Charge point {} reconnected, previous connection closed", loggable(chargePointId));
+    }
+  }
+
+  @Override
+  public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    connections.unregister(chargePointId(session), session);
   }
 
   // The values come from the client, and the path is already percent-decoded: a line break or a

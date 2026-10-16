@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -30,6 +31,21 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 class OcppWebSocketEndpointTest {
 
   @LocalServerPort private int port;
+
+  @Autowired private ChargePointConnections connections;
+
+  @Test
+  void closesThePreviousConnectionWhenAChargePointReconnects() throws Exception {
+    Client first = new Client();
+    first.connect("CP-RECONNECT", "ocpp1.6");
+
+    try (WebSocketSession second = new Client().connect("CP-RECONNECT", "ocpp1.6")) {
+      assertThat(first.closed.get(5, TimeUnit.SECONDS).getCode())
+          .isEqualTo(CloseStatus.NORMAL.getCode());
+      assertThat(connections.find("CP-RECONNECT")).isPresent();
+      assertThat(second.isOpen()).isTrue();
+    }
+  }
 
   @Test
   void acceptsOcpp16AndKeepsTheConnectionOpen() throws Exception {
