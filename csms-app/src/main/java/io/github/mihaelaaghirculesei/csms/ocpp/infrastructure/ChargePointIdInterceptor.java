@@ -41,5 +41,7 @@ class ChargePointIdInterceptor implements HandshakeInterceptor {
       ServerHttpRequest request,
       ServerHttpResponse response,
       WebSocketHandler wsHandler,
-      @Nullable Exception exception) {}
+      @Nullable Exception exception) {
+    // Nothing to do once the upgrade is done: the id is only checked before it.
+  }
 }
