@@ -19,6 +19,7 @@ class OcppWebSocketConfiguration implements WebSocketConfigurer {
     handshakeHandler.setSupportedProtocols(OcppWebSocketHandler.SUBPROTOCOL);
     registry
         .addHandler(new OcppWebSocketHandler(), "/ocpp/*")
-        .setHandshakeHandler(handshakeHandler);
+        .setHandshakeHandler(handshakeHandler)
+        .addInterceptors(new ChargePointIdInterceptor());
   }
 }
