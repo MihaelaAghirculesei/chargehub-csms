@@ -10,6 +10,7 @@ import io.github.mihaelaaghirculesei.ocpp.frame.OcppFrame;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 class OcppWebSocketHandler extends TextWebSocketHandler {
 
@@ -30,12 +32,17 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
   private final ChargePointConnections connections;
   private final PendingCalls pendingCalls;
   private final FrameCodec codec;
+  private final CallDispatcher dispatcher;
 
   OcppWebSocketHandler(
-      ChargePointConnections connections, PendingCalls pendingCalls, FrameCodec codec) {
+      ChargePointConnections connections,
+      PendingCalls pendingCalls,
+      FrameCodec codec,
+      CallDispatcher dispatcher) {
     this.connections = connections;
     this.pendingCalls = pendingCalls;
     this.codec = codec;
+    this.dispatcher = dispatcher;
   }
 
   /**
@@ -83,15 +90,20 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
     } catch (FrameDecodingException e) {
       log.atWarn()
           .addKeyValue(CHARGE_POINT_ID, loggable(chargePointId))
-          .log("Dropping a malformed frame from {}: {}", loggable(chargePointId), e.errorCode());
+          .log("Malformed frame from {}: {}", loggable(chargePointId), e.errorCode());
+      if (e.answerable()) {
+        reply(session, malformedCallError(e));
+      }
       return;
     }
     boolean matched =
         switch (frame) {
           case CallResult result -> pendingCalls.answer(chargePointId, result);
           case CallError error -> pendingCalls.answer(chargePointId, error);
-          // Answering calls from charge points comes with the action dispatcher.
-          case Call _ -> true;
+          case Call call -> {
+            reply(session, dispatcher.dispatch(chargePointId, call));
+            yield true;
+          }
         };
     if (!matched) {
       log.atWarn()
@@ -101,6 +113,35 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
               loggable(chargePointId),
               loggable(frame.messageId()));
     }
+  }
+
+  /**
+   * Answers through the registered, send-safe session, and only while it is the current one: a
+   * replaced connection is about to close and nothing would read the answer.
+   */
+  private void reply(WebSocketSession session, OcppFrame answer) {
+    String chargePointId = chargePointId(session);
+    Optional<WebSocketSession> current =
+        connections.find(chargePointId).filter(c -> c.getId().equals(session.getId()));
+    if (current.isEmpty()) {
+      return;
+    }
+    try {
+      current.get().sendMessage(new TextMessage(codec.encode(answer)));
+    } catch (IOException | RuntimeException e) {
+      log.atWarn()
+          .addKeyValue(CHARGE_POINT_ID, loggable(chargePointId))
+          .setCause(e)
+          .log("Answering {} failed", loggable(chargePointId));
+    }
+  }
+
+  private static CallError malformedCallError(FrameDecodingException e) {
+    return new CallError(
+        e.messageId().orElseThrow(),
+        e.errorCode(),
+        String.valueOf(e.getMessage()),
+        JsonNodeFactory.instance.objectNode());
   }
 
   @Override

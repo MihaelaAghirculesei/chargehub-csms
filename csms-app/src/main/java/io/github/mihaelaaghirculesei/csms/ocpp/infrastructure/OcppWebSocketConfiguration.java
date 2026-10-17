@@ -16,12 +16,17 @@ class OcppWebSocketConfiguration implements WebSocketConfigurer {
   private final ChargePointConnections connections;
   private final PendingCalls pendingCalls;
   private final FrameCodec codec;
+  private final CallDispatcher dispatcher;
 
   OcppWebSocketConfiguration(
-      ChargePointConnections connections, PendingCalls pendingCalls, FrameCodec codec) {
+      ChargePointConnections connections,
+      PendingCalls pendingCalls,
+      FrameCodec codec,
+      CallDispatcher dispatcher) {
     this.connections = connections;
     this.pendingCalls = pendingCalls;
     this.codec = codec;
+    this.dispatcher = dispatcher;
   }
 
   @Override
@@ -31,7 +36,8 @@ class OcppWebSocketConfiguration implements WebSocketConfigurer {
     DefaultHandshakeHandler handshakeHandler = new DefaultHandshakeHandler();
     handshakeHandler.setSupportedProtocols(OcppWebSocketHandler.SUBPROTOCOL);
     registry
-        .addHandler(new OcppWebSocketHandler(connections, pendingCalls, codec), "/ocpp/*")
+        .addHandler(
+            new OcppWebSocketHandler(connections, pendingCalls, codec, dispatcher), "/ocpp/*")
         .setHandshakeHandler(handshakeHandler)
         .addInterceptors(new ChargePointIdInterceptor());
   }
