@@ -17,13 +17,16 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 /** A WebSocket client playing the charge point: it records what the server sends and answers. */
-final class TestChargePoint extends TextWebSocketHandler implements AutoCloseable {
+public final class TestChargePoint extends TextWebSocketHandler implements AutoCloseable {
 
   private final BlockingQueue<String> received = new LinkedBlockingQueue<>();
   private final WebSocketSession session;
 
-  /** Connects without waiting for the registration, for a reconnect that replaces a session. */
-  TestChargePoint(int port, String chargePointId) throws Exception {
+  /**
+   * Connects without waiting for the registration: enough when the charge point speaks first, and
+   * for a reconnect that replaces a session.
+   */
+  public TestChargePoint(int port, String chargePointId) throws Exception {
     WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
     headers.setSecWebSocketProtocol(List.of("ocpp1.6"));
     URI uri = URI.create("ws://localhost:" + port + "/ocpp/" + chargePointId);
@@ -44,11 +47,11 @@ final class TestChargePoint extends TextWebSocketHandler implements AutoCloseabl
   }
 
   /** The next frame from the server, or null if none arrives in time. */
-  @Nullable String nextFrame(Duration wait) throws InterruptedException {
+  public @Nullable String nextFrame(Duration wait) throws InterruptedException {
     return received.poll(wait.toMillis(), TimeUnit.MILLISECONDS);
   }
 
-  void send(String frame) throws IOException {
+  public void send(String frame) throws IOException {
     session.sendMessage(new TextMessage(frame));
   }
 
