@@ -1,5 +1,7 @@
 package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
+import io.github.mihaelaaghirculesei.ocpp.call.PendingCalls;
+import io.github.mihaelaaghirculesei.ocpp.frame.FrameCodec;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
@@ -12,9 +14,14 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 class OcppWebSocketConfiguration implements WebSocketConfigurer {
 
   private final ChargePointConnections connections;
+  private final PendingCalls pendingCalls;
+  private final FrameCodec codec;
 
-  OcppWebSocketConfiguration(ChargePointConnections connections) {
+  OcppWebSocketConfiguration(
+      ChargePointConnections connections, PendingCalls pendingCalls, FrameCodec codec) {
     this.connections = connections;
+    this.pendingCalls = pendingCalls;
+    this.codec = codec;
   }
 
   @Override
@@ -24,7 +31,7 @@ class OcppWebSocketConfiguration implements WebSocketConfigurer {
     DefaultHandshakeHandler handshakeHandler = new DefaultHandshakeHandler();
     handshakeHandler.setSupportedProtocols(OcppWebSocketHandler.SUBPROTOCOL);
     registry
-        .addHandler(new OcppWebSocketHandler(connections), "/ocpp/*")
+        .addHandler(new OcppWebSocketHandler(connections, pendingCalls, codec), "/ocpp/*")
         .setHandshakeHandler(handshakeHandler)
         .addInterceptors(new ChargePointIdInterceptor());
   }

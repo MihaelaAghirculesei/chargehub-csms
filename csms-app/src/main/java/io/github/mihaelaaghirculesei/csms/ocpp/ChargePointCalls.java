@@ -10,7 +10,8 @@ public interface ChargePointCalls {
 
   /**
    * Sends a call and returns its outcome. The future fails with the exceptions of {@link
-   * io.github.mihaelaaghirculesei.ocpp.call.PendingCalls#begin}.
+   * io.github.mihaelaaghirculesei.ocpp.call.PendingCalls#begin}, or with {@link
+   * InvalidResponseException} when the answer breaks the response schema.
    *
    * @throws ChargePointNotConnectedException if the charge point has no open connection
    * @throws io.github.mihaelaaghirculesei.ocpp.call.CallInProgressException if the charge point is
