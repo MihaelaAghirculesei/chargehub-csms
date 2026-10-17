@@ -23,3 +23,16 @@ dependencies {
 
     testFixturesApi(libs.archunit)
 }
+
+// The scanner indexes only the main and test source sets. The shared architecture rules in the
+// test fixtures are test code as well, so they are analysed with the tests.
+val testFixtures = sourceSets["testFixtures"]
+configure<org.sonarqube.gradle.SonarExtension> {
+    properties {
+        property("sonar.tests", sourceSets.test.get().java.srcDirs + testFixtures.java.srcDirs)
+        property(
+            "sonar.java.test.binaries",
+            sourceSets.test.get().output.classesDirs.files + testFixtures.output.classesDirs.files,
+        )
+    }
+}
