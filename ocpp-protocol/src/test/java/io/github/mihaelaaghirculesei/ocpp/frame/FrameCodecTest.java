@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -117,6 +118,26 @@ class FrameCodecTest {
         catchThrowableOfType(FrameDecodingException.class, decoding("[2,1,\"Heartbeat\",{}]"));
 
     assertThat(e.messageId()).isEmpty();
+  }
+
+  /** OCPP-J expects a CALLERROR only for a CALL; nothing waits for an answer to an answer. */
+  @ParameterizedTest
+  @CsvSource(
+      delimiter = '|',
+      value = {
+        "[2,\"abc\",\"Heartbeat\"]|true",
+        "[2,\"abc\",\"\",{}]|true",
+        "[2,1,\"Heartbeat\",{}]|false",
+        "[3,\"abc\"]|false",
+        "[4,\"abc\",\"Nonsense\",\"\",{}]|false",
+        "[9,\"abc\",{}]|false",
+        "not json|false"
+      })
+  void saysWhetherAMalformedFrameExpectsAnAnswer(String text, boolean answerable) {
+    FrameDecodingException e = catchThrowableOfType(FrameDecodingException.class, decoding(text));
+
+    assertThat(e.answerable()).isEqualTo(answerable);
+    assertThat(e.errorCode()).isEqualTo(ErrorCode.FORMATION_VIOLATION);
   }
 
   private ThrowingCallable decoding(String text) {
