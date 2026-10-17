@@ -47,7 +47,7 @@ class ChargePointConnectionsTest {
     connections.register("CP-1", first);
     connections.register("CP-1", session("s2"));
 
-    connections.unregister("CP-1", first);
+    assertThat(connections.unregister("CP-1", first)).isFalse();
 
     assertThat(connections.find("CP-1")).get().extracting(WebSocketSession::getId).isEqualTo("s2");
   }
@@ -57,7 +57,7 @@ class ChargePointConnectionsTest {
     WebSocketSession session = session("s1");
     connections.register("CP-1", session);
 
-    connections.unregister("CP-1", session);
+    assertThat(connections.unregister("CP-1", session)).isTrue();
 
     assertThat(connections.find("CP-1")).isEmpty();
   }

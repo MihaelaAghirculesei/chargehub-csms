@@ -20,7 +20,8 @@ final class TestChargePoint extends TextWebSocketHandler implements AutoCloseabl
   private final BlockingQueue<String> received = new LinkedBlockingQueue<>();
   private final WebSocketSession session;
 
-  private TestChargePoint(int port, String chargePointId) throws Exception {
+  /** Connects without waiting for the registration, for a reconnect that replaces a session. */
+  TestChargePoint(int port, String chargePointId) throws Exception {
     WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
     headers.setSecWebSocketProtocol(List.of("ocpp1.6"));
     URI uri = URI.create("ws://localhost:" + port + "/ocpp/" + chargePointId);

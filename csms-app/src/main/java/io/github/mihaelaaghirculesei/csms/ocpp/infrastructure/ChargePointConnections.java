@@ -47,10 +47,14 @@ class ChargePointConnections {
   /**
    * Removes the session only if it is still the current one, so a replaced session leaves the new
    * one in place.
+   *
+   * @return whether the session was the current one and is now removed
    */
-  void unregister(String chargePointId, WebSocketSession session) {
-    sessions.computeIfPresent(
-        chargePointId, (id, current) -> current.getId().equals(session.getId()) ? null : current);
+  boolean unregister(String chargePointId, WebSocketSession session) {
+    WebSocketSession current = sessions.get(chargePointId);
+    return current != null
+        && current.getId().equals(session.getId())
+        && sessions.remove(chargePointId, current);
   }
 
   Optional<WebSocketSession> find(String chargePointId) {

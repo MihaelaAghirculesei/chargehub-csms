@@ -1,11 +1,19 @@
 package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
+import io.github.mihaelaaghirculesei.ocpp.call.PendingCalls;
+import io.github.mihaelaaghirculesei.ocpp.frame.Call;
+import io.github.mihaelaaghirculesei.ocpp.frame.CallError;
+import io.github.mihaelaaghirculesei.ocpp.frame.CallResult;
+import io.github.mihaelaaghirculesei.ocpp.frame.FrameCodec;
+import io.github.mihaelaaghirculesei.ocpp.frame.FrameDecodingException;
+import io.github.mihaelaaghirculesei.ocpp.frame.OcppFrame;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -17,9 +25,14 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
   private static final Logger log = LoggerFactory.getLogger(OcppWebSocketHandler.class);
 
   private final ChargePointConnections connections;
+  private final PendingCalls pendingCalls;
+  private final FrameCodec codec;
 
-  OcppWebSocketHandler(ChargePointConnections connections) {
+  OcppWebSocketHandler(
+      ChargePointConnections connections, PendingCalls pendingCalls, FrameCodec codec) {
     this.connections = connections;
+    this.pendingCalls = pendingCalls;
+    this.codec = codec;
   }
 
   /**
@@ -50,6 +63,8 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
     }
     String chargePointId = chargePointId(session);
     if (connections.register(chargePointId, session)) {
+      // The answer to a call sent on the old connection can never arrive on this one.
+      pendingCalls.connectionClosed(chargePointId);
       log.atInfo()
           .addKeyValue("chargePointId", loggable(chargePointId))
           .log("Charge point {} reconnected, previous connection closed", loggable(chargePointId));
@@ -57,8 +72,41 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
   }
 
   @Override
+  protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    String chargePointId = chargePointId(session);
+    OcppFrame frame;
+    try {
+      frame = codec.decode(message.getPayload());
+    } catch (FrameDecodingException e) {
+      log.atWarn()
+          .addKeyValue("chargePointId", loggable(chargePointId))
+          .log("Dropping a malformed frame from {}: {}", loggable(chargePointId), e.errorCode());
+      return;
+    }
+    boolean matched =
+        switch (frame) {
+          case CallResult result -> pendingCalls.answer(chargePointId, result);
+          case CallError error -> pendingCalls.answer(chargePointId, error);
+          // Answering calls from charge points comes with the action dispatcher.
+          case Call call -> true;
+        };
+    if (!matched) {
+      log.atWarn()
+          .addKeyValue("chargePointId", loggable(chargePointId))
+          .log(
+              "Dropping an answer from {} that matches no outstanding call: {}",
+              loggable(chargePointId),
+              loggable(frame.messageId()));
+    }
+  }
+
+  @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-    connections.unregister(chargePointId(session), session);
+    String chargePointId = chargePointId(session);
+    // A replaced connection closing late must not fail a call sent on the new one.
+    if (connections.unregister(chargePointId, session)) {
+      pendingCalls.connectionClosed(chargePointId);
+    }
   }
 
   // The values come from the client, and the path is already percent-decoded: a line break or a

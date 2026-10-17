@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
 import io.github.mihaelaaghirculesei.csms.ocpp.ChargePointCalls;
 import io.github.mihaelaaghirculesei.csms.ocpp.ChargePointNotConnectedException;
+import io.github.mihaelaaghirculesei.csms.ocpp.InvalidResponseException;
 import io.github.mihaelaaghirculesei.ocpp.call.PendingCalls;
 import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.ocpp.frame.CallResult;
@@ -66,6 +67,16 @@ class WebSocketChargePointCalls implements ChargePointCalls {
       log.warn("Sending {} failed", action.wireName(), e);
       pendingCalls.connectionClosed(chargePointId);
     }
-    return outcome;
+    return outcome.thenApply(result -> checkedResponse(action, result));
+  }
+
+  private CallResult checkedResponse(Action action, CallResult result) {
+    validator
+        .validate(action.wireName(), PayloadType.RESPONSE, result.payload())
+        .ifPresent(
+            violation -> {
+              throw new InvalidResponseException(action.wireName(), violation.description());
+            });
+    return result;
   }
 }
