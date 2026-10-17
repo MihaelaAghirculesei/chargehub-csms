@@ -44,11 +44,15 @@ public final class FrameCodec {
     }
     return switch (typeId.intValue()) {
       case CALL -> {
-        requireSize(frame, 4, messageId);
-        String id = requireId(messageId);
-        String action = string(frame, 2, "Action", messageId);
-        ObjectNode payload = object(frame, 3, "Payload", messageId);
-        yield create(() -> new Call(id, action, payload), id);
+        try {
+          requireSize(frame, 4, messageId);
+          String id = requireId(messageId);
+          String action = string(frame, 2, "Action", messageId);
+          ObjectNode payload = object(frame, 3, "Payload", messageId);
+          yield create(() -> new Call(id, action, payload), id);
+        } catch (FrameDecodingException e) {
+          throw e.ofCall();
+        }
       }
       case CALL_RESULT -> {
         requireSize(frame, 3, messageId);
