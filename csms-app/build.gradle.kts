@@ -41,6 +41,12 @@ dependencies {
     mockitoAgent(libs.mockito.core) { isTransitive = false }
 }
 
+// Only business rules count for the gate. Adapters, configuration and the entry point are covered
+// by the integration tests instead, and DTOs carry no logic to cover.
+tasks.jacocoTestCoverageVerification {
+    classDirectories.setFrom(sourceSets.main.map { it.output.asFileTree.matching { include("**/domain/**") } })
+}
+
 tasks.test {
     // Tests take container images from the compose file so local runs and tests cannot drift apart.
     // Declared as an input so changing an image reruns the tests.
