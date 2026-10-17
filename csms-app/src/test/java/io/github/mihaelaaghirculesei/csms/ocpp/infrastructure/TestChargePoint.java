@@ -1,5 +1,7 @@
 package io.github.mihaelaaghirculesei.csms.ocpp.infrastructure;
 
+import static org.awaitility.Awaitility.await;
+
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -32,13 +34,7 @@ final class TestChargePoint extends TextWebSocketHandler implements AutoCloseabl
   static TestChargePoint connect(int port, String chargePointId, ChargePointConnections connections)
       throws Exception {
     TestChargePoint chargePoint = new TestChargePoint(port, chargePointId);
-    long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-    while (connections.find(chargePointId).isEmpty()) {
-      if (System.nanoTime() > deadline) {
-        throw new IllegalStateException(chargePointId + " was not registered");
-      }
-      Thread.sleep(10);
-    }
+    await().atMost(Duration.ofSeconds(5)).until(() -> connections.find(chargePointId).isPresent());
     return chargePoint;
   }
 

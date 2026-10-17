@@ -34,6 +34,7 @@ dependencies {
     testImplementation(libs.snakeyaml)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.awaitility)
     testRuntimeOnly(libs.junit.platform.launcher)
 
     mockitoAgent(platform(SpringBootPlugin.BOM_COORDINATES))
