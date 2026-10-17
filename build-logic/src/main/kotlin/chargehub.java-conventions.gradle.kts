@@ -74,10 +74,20 @@ spotless {
 // Without this, a library asking for a newer Jackson line silently moves the whole application.
 // See docs/adr/0006.
 val expectedJackson = libs.findVersion("jackson").get().requiredVersion
+// Reads the resolved dependency graph, not the files: versions are all the check needs, and the
+// graph is known without building the jars of the project modules a module depends on.
 val resolvedJackson =
-    configurations.named("runtimeClasspath").flatMap { it.incoming.artifacts.resolvedArtifacts }.map { artifacts ->
-        artifacts
-            .mapNotNull { it.id.componentIdentifier as? ModuleComponentIdentifier }
+    configurations.named("runtimeClasspath").flatMap { it.incoming.resolutionResult.rootComponent }.map { root ->
+        val seen = mutableSetOf<ResolvedComponentResult>()
+        val pending = ArrayDeque(listOf(root))
+        while (pending.isNotEmpty()) {
+            val component = pending.removeFirst()
+            if (seen.add(component)) {
+                component.dependencies.filterIsInstance<ResolvedDependencyResult>().forEach { pending.add(it.selected) }
+            }
+        }
+        seen
+            .mapNotNull { it.id as? ModuleComponentIdentifier }
             .filter { it.group == "tools.jackson.core" && it.module == "jackson-databind" }
             .map { it.version }
             .toSortedSet()
