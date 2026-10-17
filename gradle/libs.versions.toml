@@ -37,6 +37,7 @@ flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql
 postgresql = { module = "org.postgresql:postgresql" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+awaitility = { module = "org.awaitility:awaitility" }
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 mockito-core = { module = "org.mockito:mockito-core" }
