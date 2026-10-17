@@ -51,8 +51,9 @@ class PendingCallsTest {
   @Test
   void refusesASecondCallWhileOneIsOutstanding() {
     CompletableFuture<CallResult> outstanding = calls.begin("CP-1", call("m1"));
+    Call second = call("m2");
 
-    assertThatThrownBy(() -> calls.begin("CP-1", call("m2")))
+    assertThatThrownBy(() -> calls.begin("CP-1", second))
         .isInstanceOf(CallInProgressException.class);
     assertThat(outstanding).isNotDone();
     assertThatNoException().isThrownBy(() -> calls.begin("CP-2", call("m2")));
