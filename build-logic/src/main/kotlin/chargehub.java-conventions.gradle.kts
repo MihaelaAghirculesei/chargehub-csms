@@ -64,6 +64,28 @@ tasks.jacocoTestReport {
     }
 }
 
+// The gate covers every class of a module unless the module narrows classDirectories to where
+// its logic lives. Applied to the module as a whole: per package, a small package would swing on
+// a single branch.
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.80".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
 spotless {
     java {
         googleJavaFormat(libs.findVersion("google-java-format").get().requiredVersion)
