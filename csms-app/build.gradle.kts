@@ -11,6 +11,8 @@ dependencies {
     // Gradle's native platform support instead of the dependency-management plugin.
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
 
+    implementation(project(":ocpp-protocol"))
+
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.websocket)
