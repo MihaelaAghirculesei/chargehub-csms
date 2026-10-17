@@ -22,6 +22,9 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
 
   static final String SUBPROTOCOL = "ocpp1.6";
 
+  // The structured log field, so every line about a charge point can be found with one query.
+  private static final String CHARGE_POINT_ID = "chargePointId";
+
   private static final Logger log = LoggerFactory.getLogger(OcppWebSocketHandler.class);
 
   private final ChargePointConnections connections;
@@ -51,7 +54,7 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
               .map(OcppWebSocketHandler::loggable)
               .toList();
       log.atWarn()
-          .addKeyValue("chargePointId", chargePointId)
+          .addKeyValue(CHARGE_POINT_ID, chargePointId)
           .addKeyValue("offeredSubprotocols", offered)
           .log(
               "Closing connection of {}: it offered {} instead of {}",
@@ -66,7 +69,7 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
       // The answer to a call sent on the old connection can never arrive on this one.
       pendingCalls.connectionClosed(chargePointId);
       log.atInfo()
-          .addKeyValue("chargePointId", loggable(chargePointId))
+          .addKeyValue(CHARGE_POINT_ID, loggable(chargePointId))
           .log("Charge point {} reconnected, previous connection closed", loggable(chargePointId));
     }
   }
@@ -79,7 +82,7 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
       frame = codec.decode(message.getPayload());
     } catch (FrameDecodingException e) {
       log.atWarn()
-          .addKeyValue("chargePointId", loggable(chargePointId))
+          .addKeyValue(CHARGE_POINT_ID, loggable(chargePointId))
           .log("Dropping a malformed frame from {}: {}", loggable(chargePointId), e.errorCode());
       return;
     }
@@ -88,11 +91,11 @@ class OcppWebSocketHandler extends TextWebSocketHandler {
           case CallResult result -> pendingCalls.answer(chargePointId, result);
           case CallError error -> pendingCalls.answer(chargePointId, error);
           // Answering calls from charge points comes with the action dispatcher.
-          case Call call -> true;
+          case Call _ -> true;
         };
     if (!matched) {
       log.atWarn()
-          .addKeyValue("chargePointId", loggable(chargePointId))
+          .addKeyValue(CHARGE_POINT_ID, loggable(chargePointId))
           .log(
               "Dropping an answer from {} that matches no outstanding call: {}",
               loggable(chargePointId),
