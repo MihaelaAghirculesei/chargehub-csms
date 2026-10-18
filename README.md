@@ -4,13 +4,14 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 
 [![CI](https://github.com/MihaelaAghirculesei/chargehub-csms/actions/workflows/ci.yml/badge.svg)](https://github.com/MihaelaAghirculesei/chargehub-csms/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/MihaelaAghirculesei/chargehub-csms/actions/workflows/codeql.yml/badge.svg)](https://github.com/MihaelaAghirculesei/chargehub-csms/actions/workflows/codeql.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=MihaelaAghirculesei_chargehub-csms&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=MihaelaAghirculesei_chargehub-csms)
 
 ## Status
 
-Early stage. The foundations are in place; no OCPP message handling yet.
+A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
 
-- **Done:** multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests.
-- **Next:** the OCPP 1.6J protocol layer (messages, OCPP-J codec, JSON Schema validation), then a charge point simulator.
+- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call.
+- **Next:** a charge point simulator, then the charge point registry and live connector status.
 
 ## Planned scope
 
@@ -27,8 +28,8 @@ A modular monolith on Spring Modulith ([ADR 0002](docs/adr/0002-modular-monolith
 
 | Module | Purpose |
 |---|---|
-| `ocpp-protocol` | OCPP 1.6J messages and JSON Schema validation, free of Spring |
-| `csms-app` | Spring Boot application |
+| `ocpp-protocol` | OCPP-J codec, official OCPP 1.6 JSON schemas and validation, outbound call matching, typed messages; free of Spring |
+| `csms-app` | Spring Boot application. Spring Modulith modules: `ocpp` (WebSocket endpoint, connections, call routing) and `station` (charge points) |
 | `charge-point-simulator` | Simulated charge points, also used as a test fixture (not started yet) |
 
 Module boundaries are enforced by tests: Spring Modulith verification and ArchUnit rules fail the build when one module reaches into another's internals.
@@ -47,8 +48,10 @@ Every pull request runs `./gradlew build` and starts the Docker Compose stack in
 - Error Prone findings and nullness violations (NullAway with JSpecify `@NullMarked` packages)
 - architecture violations (Spring Modulith, ArchUnit)
 - Jackson version drift between modules ([ADR 0006](docs/adr/0006-align-jackson-on-the-spring-boot-version.md))
+- coverage below 80% of lines or branches in `ocpp-protocol` and in domain packages (JaCoCo)
+- a change to any of the official OCPP schemas, which are kept byte for byte as published
 
-CodeQL scans the code. Test and coverage (JaCoCo) reports are uploaded as CI artifacts on every run, including failed ones.
+CodeQL scans the code and SonarQube Cloud analyses every pull request. Test and coverage (JaCoCo) reports are uploaded as CI artifacts on every run, including failed ones.
 
 ## Quick start
 
@@ -62,6 +65,15 @@ docker compose -f deploy/docker-compose.yml up -d
 
 PostgreSQL listens on `127.0.0.1:5432`, Keycloak on `127.0.0.1:8180`.
 
+Run the application with readable logs (the database password comes from `deploy/.env`):
+
+```bash
+set -a && . deploy/.env && set +a
+SPRING_PROFILES_ACTIVE=dev ./gradlew :csms-app:bootRun
+```
+
+A charge point connects to `ws://localhost:8080/ocpp/{chargePointId}` with the WebSocket subprotocol `ocpp1.6`. The id may contain letters, digits and `._:-`, up to 48 characters.
+
 ## Out of scope
 
 - OCPP 2.0.1: the protocol sits behind its own module, so it can be added later ([ADR 0003](docs/adr/0003-ocpp-1-6j-as-first-protocol-version.md))
@@ -71,4 +83,6 @@ PostgreSQL listens on `127.0.0.1:5432`, Keycloak on `127.0.0.1:8180`.
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](LICENSE).
+
+The OCPP 1.6 JSON schemas in `ocpp-protocol` are published by the Open Charge Alliance under [CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/legalcode) and are included unchanged; see their [NOTICE](ocpp-protocol/src/main/resources/ocpp16/schemas/NOTICE).
