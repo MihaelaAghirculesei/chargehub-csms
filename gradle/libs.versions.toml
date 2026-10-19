@@ -27,6 +27,7 @@ sonarqube = "7.5.0.8588"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-websocket = { module = "org.springframework.boot:spring-boot-starter-websocket" }
@@ -39,6 +40,7 @@ springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openap
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 awaitility = { module = "org.awaitility:awaitility" }
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 mockito-core = { module = "org.mockito:mockito-core" }
 snakeyaml = { module = "org.yaml:snakeyaml" }
