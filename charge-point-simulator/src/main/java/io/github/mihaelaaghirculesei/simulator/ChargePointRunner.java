@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.simulator;
 
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.SessionFailedException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ class ChargePointRunner implements SmartLifecycle {
   private static final Logger log = LoggerFactory.getLogger(ChargePointRunner.class);
 
   private final ChargePoint chargePoint;
-  private volatile @Nullable Thread thread;
+  private final AtomicReference<@Nullable Thread> thread = new AtomicReference<>();
 
   ChargePointRunner(ChargePoint chargePoint) {
     this.chargePoint = chargePoint;
@@ -25,7 +26,7 @@ class ChargePointRunner implements SmartLifecycle {
 
   @Override
   public void start() {
-    thread = Thread.ofPlatform().name("charge-point-" + chargePoint.id()).start(this::run);
+    thread.set(Thread.ofPlatform().name("charge-point-" + chargePoint.id()).start(this::run));
   }
 
   private void run() {
@@ -40,7 +41,7 @@ class ChargePointRunner implements SmartLifecycle {
 
   @Override
   public void stop() {
-    Thread current = thread;
+    Thread current = thread.get();
     if (current != null) {
       current.interrupt();
       try {
@@ -53,7 +54,7 @@ class ChargePointRunner implements SmartLifecycle {
 
   @Override
   public boolean isRunning() {
-    Thread current = thread;
+    Thread current = thread.get();
     return current != null && current.isAlive();
   }
 }
