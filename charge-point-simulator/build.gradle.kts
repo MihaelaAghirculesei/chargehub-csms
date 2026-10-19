@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
 
+    implementation(project(":ocpp-protocol"))
+
+    // No web starter: the simulator is a WebSocket client, and the JDK client needs no server.
     implementation(libs.spring.boot.starter)
     implementation(libs.jspecify)
 
