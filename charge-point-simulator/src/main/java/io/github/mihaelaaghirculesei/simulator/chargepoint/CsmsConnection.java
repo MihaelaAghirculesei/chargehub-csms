@@ -64,7 +64,8 @@ public final class CsmsConnection implements AutoCloseable {
   public static CsmsConnection open(
       HttpClient client, URI centralSystem, String chargePointId, Duration callTimeout) {
     CsmsConnection connection = new CsmsConnection(chargePointId, callTimeout);
-    URI uri = URI.create(centralSystem.toString().replaceAll("/+$", "") + "/" + chargePointId);
+    String base = centralSystem.toString();
+    URI uri = URI.create(base + (base.endsWith("/") ? "" : "/") + chargePointId);
     WebSocket webSocket;
     try {
       webSocket =
