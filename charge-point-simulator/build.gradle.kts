@@ -12,6 +12,8 @@ dependencies {
     implementation(libs.jspecify)
 
     testImplementation(libs.spring.boot.starter.test)
+    // Only the test central system runs a WebSocket server.
+    testImplementation(libs.spring.boot.starter.websocket)
     testImplementation(testFixtures(project(":ocpp-protocol")))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
