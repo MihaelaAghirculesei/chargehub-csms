@@ -150,36 +150,6 @@ public final class CsmsConnection implements AutoCloseable {
     }
   }
 
-  private void received(WebSocket webSocket, String text) {
-    OcppFrame frame;
-    try {
-      frame = CODEC.decode(text);
-    } catch (FrameDecodingException e) {
-      log.warn("Dropping a malformed frame sent to {}: {}", chargePointId, e.errorCode());
-      return;
-    }
-    boolean matched =
-        switch (frame) {
-          case CallResult result -> pendingCalls.answer(chargePointId, result);
-          case CallError error -> pendingCalls.answer(chargePointId, error);
-          case Call call -> {
-            // Answering at once spares the central system its call timeout.
-            send(
-                webSocket,
-                CODEC.encode(
-                    new CallError(
-                        call.messageId(),
-                        ErrorCode.NOT_IMPLEMENTED,
-                        "Not supported by the simulator",
-                        JsonNodeFactory.instance.objectNode())));
-            yield true;
-          }
-        };
-    if (!matched) {
-      log.warn("Dropping an answer to {} that matches no outstanding call", chargePointId);
-    }
-  }
-
   private void closed() {
     pendingCalls.connectionClosed(chargePointId);
     closed.countDown();
@@ -201,6 +171,36 @@ public final class CsmsConnection implements AutoCloseable {
       }
       webSocket.request(1);
       return null;
+    }
+
+    private void received(WebSocket webSocket, String message) {
+      OcppFrame frame;
+      try {
+        frame = CODEC.decode(message);
+      } catch (FrameDecodingException e) {
+        log.warn("Dropping a malformed frame sent to {}: {}", chargePointId, e.errorCode());
+        return;
+      }
+      boolean matched =
+          switch (frame) {
+            case CallResult result -> pendingCalls.answer(chargePointId, result);
+            case CallError error -> pendingCalls.answer(chargePointId, error);
+            case Call call -> {
+              // Answering at once spares the central system its call timeout.
+              send(
+                  webSocket,
+                  CODEC.encode(
+                      new CallError(
+                          call.messageId(),
+                          ErrorCode.NOT_IMPLEMENTED,
+                          "Not supported by the simulator",
+                          JsonNodeFactory.instance.objectNode())));
+              yield true;
+            }
+          };
+      if (!matched) {
+        log.warn("Dropping an answer to {} that matches no outstanding call", chargePointId);
+      }
     }
 
     @Override
