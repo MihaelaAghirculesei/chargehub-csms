@@ -48,7 +48,7 @@ public final class ChargePoint {
     try (CsmsConnection connection = CsmsConnection.open(client, centralSystem, id, callTimeout)) {
       Duration heartbeatInterval = boot(connection);
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
-      while (true) {
+      while (!Thread.currentThread().isInterrupted()) {
         waitOrFail(connection, heartbeatInterval);
         connection.call(
             Action.HEARTBEAT, JsonNodeFactory.instance.objectNode(), HeartbeatResponse.class);
