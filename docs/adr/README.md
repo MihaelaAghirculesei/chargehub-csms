@@ -14,3 +14,4 @@ Why the project looks the way it does. How these records work is described in
 | [0007](0007-plain-websocket-for-ocpp.md) | Use plain WebSocket for OCPP, not STOMP | Accepted |
 | [0008](0008-validate-payloads-at-the-protocol-edge.md) | Validate OCPP payloads at the protocol edge | Accepted |
 | [0009](0009-one-outstanding-call-per-charge-point.md) | Refuse a second call while one is outstanding | Accepted |
+| [0010](0010-simulator-as-a-first-class-component.md) | Build the charge point simulator as a first-class component | Accepted |
