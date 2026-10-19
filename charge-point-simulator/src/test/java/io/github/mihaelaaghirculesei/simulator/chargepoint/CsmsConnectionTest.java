@@ -131,7 +131,7 @@ class CsmsConnectionTest {
   }
 
   @Test
-  void doesNotSendARequestThatBreaksItsSchema() throws Exception {
+  void doesNotSendARequestThatBreaksItsSchema() {
     BootNotificationRequest tooLong =
         new BootNotificationRequest(
             "V".repeat(21), "ModelY", null, null, null, null, null, null, null);
@@ -220,7 +220,7 @@ class CsmsConnectionTest {
       connection.call(Action.BOOT_NOTIFICATION, BOOT, BootNotificationResponse.class);
     } catch (SessionFailedException e) {
       return e;
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
     throw new AssertionError("The BootNotification did not fail");
