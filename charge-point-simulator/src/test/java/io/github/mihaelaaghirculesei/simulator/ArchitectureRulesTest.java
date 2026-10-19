@@ -1,5 +1,7 @@
 package io.github.mihaelaaghirculesei.simulator;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -27,5 +29,17 @@ class ArchitectureRulesTest {
   @Test
   void everyProductionPackageIsNullMarked() {
     ArchitectureRules.everyPackageNullMarked().check(PRODUCTION_CLASSES);
+  }
+
+  @Test
+  void chargePointDoesNotDependOnSpring() {
+    noClasses()
+        .that()
+        .resideInAPackage(ROOT + ".chargepoint..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("org.springframework..")
+        .because("tests run a charge point without a context; see docs/adr/0010")
+        .check(PRODUCTION_CLASSES);
   }
 }
