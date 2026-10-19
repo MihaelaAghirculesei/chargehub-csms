@@ -1,5 +1,6 @@
 package io.github.mihaelaaghirculesei.simulator;
 
+import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.ocpp.frame.FrameCodec;
 import io.github.mihaelaaghirculesei.ocpp.frame.OcppFrame;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -33,6 +35,7 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   private final boolean ocpp16;
   private final ConfigurableApplicationContext context;
   private volatile @Nullable WebSocketSession session;
+  private volatile Function<Call, @Nullable String> answers = call -> null;
 
   private FakeCentralSystem(boolean ocpp16) {
     this.ocpp16 = ocpp16;
@@ -75,6 +78,11 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
     Objects.requireNonNull(session).sendMessage(new TextMessage(text));
   }
 
+  /** From now on every call is answered with the text the function returns; null sends nothing. */
+  public void answerWith(Function<Call, @Nullable String> answers) {
+    this.answers = answers;
+  }
+
   public void disconnect() throws IOException {
     Objects.requireNonNull(session).close();
   }
@@ -91,8 +99,15 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   }
 
   @Override
-  protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-    received.add(CODEC.decode(message.getPayload()));
+  protected void handleTextMessage(WebSocketSession session, TextMessage message)
+      throws IOException {
+    OcppFrame frame = CODEC.decode(message.getPayload());
+    String answer = frame instanceof Call call ? answers.apply(call) : null;
+    if (answer != null) {
+      send(answer);
+    }
+    // Only after the answer, so a test reacting to the frame never sends at the same time.
+    received.add(frame);
   }
 
   @Override
