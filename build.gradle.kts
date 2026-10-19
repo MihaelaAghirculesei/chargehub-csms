@@ -13,5 +13,7 @@ sonar {
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.organization", "mihaelaaghirculesei")
         property("sonar.projectKey", "MihaelaAghirculesei_chargehub-csms")
+        // A main method only hands over to Spring; the context tests cover what it starts.
+        property("sonar.coverage.exclusions", "**/src/main/java/**/*Application.java")
     }
 }
