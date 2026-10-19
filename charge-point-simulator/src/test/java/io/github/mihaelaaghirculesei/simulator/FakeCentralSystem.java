@@ -1,14 +1,23 @@
 package io.github.mihaelaaghirculesei.simulator;
 
 import io.github.mihaelaaghirculesei.ocpp.frame.Call;
+import io.github.mihaelaaghirculesei.ocpp.frame.CallResult;
 import io.github.mihaelaaghirculesei.ocpp.frame.FrameCodec;
 import io.github.mihaelaaghirculesei.ocpp.frame.OcppFrame;
+import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationResponse;
+import io.github.mihaelaaghirculesei.ocpp.message.HeartbeatResponse;
+import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
+import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -25,11 +34,13 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
+import tools.jackson.databind.node.ObjectNode;
 
 /** A central system for tests, on a random port: it records what the charge point sends. */
 public final class FakeCentralSystem extends TextWebSocketHandler implements AutoCloseable {
 
   private static final FrameCodec CODEC = new FrameCodec();
+  private static final Instant NOW = Instant.parse("2026-10-19T08:00:00Z");
 
   private final BlockingQueue<OcppFrame> received = new LinkedBlockingQueue<>();
   private final boolean ocpp16;
@@ -81,6 +92,29 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   /** From now on every call is answered with the text the function returns; null sends nothing. */
   public void answerWith(Function<Call, @Nullable String> answers) {
     this.answers = answers;
+  }
+
+  /**
+   * Answers BootNotification with the given statuses in turn, then with Accepted, and Heartbeat
+   * with a fixed time.
+   */
+  public void answerBootsWith(int interval, RegistrationStatus... statuses) {
+    Queue<RegistrationStatus> pending = new ConcurrentLinkedQueue<>(List.of(statuses));
+    answerWith(
+        call -> {
+          ObjectNode payload =
+              switch (call.action()) {
+                case "BootNotification" ->
+                    OcppMessages.write(
+                        new BootNotificationResponse(
+                            Objects.requireNonNullElse(pending.poll(), RegistrationStatus.ACCEPTED),
+                            NOW,
+                            interval));
+                case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
+                default -> throw new IllegalStateException("Unexpected action " + call.action());
+              };
+          return CODEC.encode(new CallResult(call.messageId(), payload));
+        });
   }
 
   public void disconnect() throws IOException {
