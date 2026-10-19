@@ -46,7 +46,8 @@ class CsmsConnectionTest {
   @Test
   void refusesACentralSystemThatDoesNotSpeakOcpp16() {
     try (FakeCentralSystem other = FakeCentralSystem.withoutOcpp16()) {
-      assertThatThrownBy(() -> CsmsConnection.open(CLIENT, other.url(), "CP-1"))
+      URI url = other.url();
+      assertThatThrownBy(() -> CsmsConnection.open(CLIENT, url, "CP-1"))
           .isInstanceOf(SessionFailedException.class)
           .hasMessageContaining("ocpp1.6");
     }
@@ -66,7 +67,7 @@ class CsmsConnectionTest {
 
   @Test
   void dropsWhatItCannotUseAndAnswersUnsupportedCallsWithNotImplemented() throws Exception {
-    try (CsmsConnection _ = CsmsConnection.open(CLIENT, centralSystem.url(), "CP-1")) {
+    try (var _ = CsmsConnection.open(CLIENT, centralSystem.url(), "CP-1")) {
       centralSystem.send("not a frame");
       centralSystem.send("[3,\"unknown-call\",{}]");
       centralSystem.send("[4,\"unknown-call\",\"InternalError\",\"\",{}]");
@@ -82,7 +83,7 @@ class CsmsConnectionTest {
 
   @Test
   void readsAFrameThatArrivesInSeveralParts() throws Exception {
-    try (CsmsConnection _ = CsmsConnection.open(CLIENT, centralSystem.url(), "CP-1")) {
+    try (var _ = CsmsConnection.open(CLIENT, centralSystem.url(), "CP-1")) {
       String data = "d".repeat(100_000);
       centralSystem.send(
           new Call(
