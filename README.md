@@ -10,8 +10,8 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 
 A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
 
-- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call.
-- **Next:** a charge point simulator, then the charge point registry and live connector status.
+- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that boots and sends heartbeats like a real charge point.
+- **Next:** simulator reconnection and many simulated charge points, then the charge point registry and live connector status.
 
 ## Planned scope
 
@@ -30,7 +30,7 @@ A modular monolith on Spring Modulith ([ADR 0002](docs/adr/0002-modular-monolith
 |---|---|
 | `ocpp-protocol` | OCPP-J codec, official OCPP 1.6 JSON schemas and validation, outbound call matching, typed messages; free of Spring |
 | `csms-app` | Spring Boot application. Spring Modulith modules: `ocpp` (WebSocket endpoint, connections, call routing) and `station` (charge points) |
-| `charge-point-simulator` | Simulated charge points, also used as a test fixture (not started yet) |
+| `charge-point-simulator` | Simulated charge points that speak OCPP only, through `ocpp-protocol` ([ADR 0010](docs/adr/0010-simulator-as-a-first-class-component.md)). One charge point for now |
 
 Module boundaries are enforced by tests: Spring Modulith verification and ArchUnit rules fail the build when one module reaches into another's internals.
 
@@ -73,6 +73,14 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew :csms-app:bootRun
 ```
 
 A charge point connects to `ws://localhost:8080/ocpp/{chargePointId}` with the WebSocket subprotocol `ocpp1.6`. The id may contain letters, digits and `._:-`, up to 48 characters.
+
+With the application running, start a simulated charge point in a second terminal:
+
+```bash
+./gradlew :charge-point-simulator:bootRun --args="--chargehub.simulator.charge-point-id=SIM-0001"
+```
+
+It connects to `ws://localhost:8080/ocpp` (`chargehub.simulator.central-system`), boots and sends heartbeats at the interval the central system answers with. For now it stops when the connection is lost.
 
 ## Out of scope
 
