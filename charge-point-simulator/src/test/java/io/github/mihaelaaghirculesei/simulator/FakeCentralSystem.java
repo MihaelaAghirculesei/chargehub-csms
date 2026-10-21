@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -30,6 +31,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -49,25 +51,32 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   private final boolean ocpp16;
   private final ConfigurableApplicationContext context;
   // Completed on a server thread, possibly after the client already saw the handshake succeed.
-  private final CompletableFuture<WebSocketSession> connected = new CompletableFuture<>();
+  // Replaced when the connection closes, so a charge point that reconnects gets a fresh one.
+  private final AtomicReference<CompletableFuture<WebSocketSession>> connected =
+      new AtomicReference<>(new CompletableFuture<>());
   private volatile Function<Call, @Nullable String> answers = call -> null;
 
-  private FakeCentralSystem(boolean ocpp16) {
+  private FakeCentralSystem(boolean ocpp16, int port) {
     this.ocpp16 = ocpp16;
     this.context =
         new SpringApplicationBuilder(Server.class)
-            .properties(Map.of("server.port", "0", "spring.main.banner-mode", "off"))
+            .properties(Map.of("server.port", port, "spring.main.banner-mode", "off"))
             .initializers(c -> c.getBeanFactory().registerSingleton("centralSystem", this))
             .run();
   }
 
   public static FakeCentralSystem start() {
-    return new FakeCentralSystem(true);
+    return new FakeCentralSystem(true, 0);
+  }
+
+  /** Starts on a given port, for example the one of a central system that was stopped. */
+  public static FakeCentralSystem start(int port) {
+    return new FakeCentralSystem(true, port);
   }
 
   /** Completes the handshake without a subprotocol, like a server that does not speak OCPP. */
   public static FakeCentralSystem withoutOcpp16() {
-    return new FakeCentralSystem(false);
+    return new FakeCentralSystem(false, 0);
   }
 
   public URI url() {
@@ -132,13 +141,24 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   }
 
   @Override
-  public void afterConnectionEstablished(WebSocketSession session) {
-    connected.complete(session);
+  public synchronized void afterConnectionEstablished(WebSocketSession session) {
+    // The new connection can arrive before the server has seen the old one close.
+    if (!connected.get().complete(session)) {
+      connected.set(CompletableFuture.completedFuture(session));
+    }
+  }
+
+  @Override
+  public synchronized void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    CompletableFuture<WebSocketSession> current = connected.get();
+    if (current.isDone() && current.join().getId().equals(session.getId())) {
+      connected.set(new CompletableFuture<>());
+    }
   }
 
   private WebSocketSession session() {
     try {
-      return connected.get(5, TimeUnit.SECONDS);
+      return connected.get().get(5, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Interrupted while waiting for the charge point", e);
