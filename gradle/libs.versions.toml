@@ -1,6 +1,6 @@
 [versions]
 spring-boot = "4.1.1"
-spotless = "8.10.3"
+spotless = "8.10.4"
 google-java-format = "1.36.1"
 errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
