@@ -11,7 +11,7 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
 
 - **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that boots and sends heartbeats like a real charge point.
-- **Next:** simulator reconnection and many simulated charge points, then the charge point registry and live connector status.
+- **Next:** many simulated charge points, then the charge point registry and live connector status.
 
 ## Planned scope
 
@@ -80,7 +80,7 @@ With the application running, start a simulated charge point in a second termina
 ./gradlew :charge-point-simulator:bootRun --args="--chargehub.simulator.charge-point-id=SIM-0001"
 ```
 
-It connects to `ws://localhost:8080/ocpp` (`chargehub.simulator.central-system`), boots and sends heartbeats at the interval the central system answers with. For now it stops when the connection is lost.
+It connects to `ws://localhost:8080/ocpp` (`chargehub.simulator.central-system`), boots and sends heartbeats at the interval the central system answers with. When the connection is lost it connects again, waiting longer after each failed attempt (`chargehub.simulator.reconnect.*`).
 
 ## Out of scope
 

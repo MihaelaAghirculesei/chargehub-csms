@@ -23,6 +23,7 @@ class SimulatorConfiguration {
             httpClient,
             properties.centralSystem(),
             properties.chargePointId(),
-            properties.callTimeout()));
+            properties.callTimeout(),
+            properties.reconnect().policy()));
   }
 }

@@ -8,11 +8,16 @@ import io.github.mihaelaaghirculesei.ocpp.payload.Action;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.node.JsonNodeFactory;
 
-/** A simulated charge point: it boots, then sends heartbeats until stopped or disconnected. */
+/**
+ * A simulated charge point: it boots, then sends heartbeats. When the session fails it connects
+ * again, like a real charge point. Not thread-safe: one thread runs it.
+ */
 public final class ChargePoint {
 
   // OCPP 1.6 lets the charge point choose when the central system sends an interval of 0.
@@ -27,26 +32,50 @@ public final class ChargePoint {
   private final URI centralSystem;
   private final String id;
   private final Duration callTimeout;
+  private final ReconnectPolicy reconnect;
+  private final RandomGenerator random = RandomGenerator.getDefault();
+  // Read by tests from another thread.
+  private final AtomicInteger failedAttempts = new AtomicInteger();
 
-  public ChargePoint(HttpClient client, URI centralSystem, String id, Duration callTimeout) {
+  public ChargePoint(
+      HttpClient client,
+      URI centralSystem,
+      String id,
+      Duration callTimeout,
+      ReconnectPolicy reconnect) {
     this.client = client;
     this.centralSystem = centralSystem;
     this.id = id;
     this.callTimeout = callTimeout;
+    this.reconnect = reconnect;
   }
 
   public String id() {
     return id;
   }
 
-  /**
-   * Runs until the thread is interrupted.
-   *
-   * @throws SessionFailedException if a call fails or the connection closes
-   */
+  int failedAttempts() {
+    return failedAttempts.get();
+  }
+
+  /** Runs one session after the other until the thread is interrupted. */
   public void run() throws InterruptedException {
+    while (!Thread.currentThread().isInterrupted()) {
+      try {
+        session();
+      } catch (SessionFailedException e) {
+        Duration wait = reconnect.waitBefore(failedAttempts.getAndIncrement(), random);
+        log.warn("Charge point {} connects again in {}: {}", id, wait, e.getMessage());
+        Thread.sleep(wait);
+      }
+    }
+  }
+
+  private void session() throws InterruptedException {
     try (CsmsConnection connection = CsmsConnection.open(client, centralSystem, id, callTimeout)) {
       Duration heartbeatInterval = boot(connection);
+      // A charge point that was accepted again starts its back-off from the beginning.
+      failedAttempts.set(0);
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
       while (!Thread.currentThread().isInterrupted()) {
         waitOrFail(connection, heartbeatInterval);
