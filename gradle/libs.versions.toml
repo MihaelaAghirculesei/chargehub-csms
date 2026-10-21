@@ -14,7 +14,7 @@ jackson = "3.1.5"
 json-schema-validator = "3.0.6"
 # ocpp-protocol has no Spring Boot BOM: it stays on JUnit Platform 1.x for jqwik.
 junit5 = "5.14.4"
-jqwik = "1.10.1"
+jqwik = "1.10.2"
 # Same version as the Spring Boot BOM.
 assertj = "3.27.7"
 # Spring Modulith is not in the Spring Boot BOM; the 2.1 line matches Spring Boot 4.1.
