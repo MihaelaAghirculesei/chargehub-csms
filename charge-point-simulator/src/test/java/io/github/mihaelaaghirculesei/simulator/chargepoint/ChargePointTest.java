@@ -2,10 +2,12 @@ package io.github.mihaelaaghirculesei.simulator.chargepoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
 import io.github.mihaelaaghirculesei.simulator.FakeCentralSystem;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Objects;
@@ -19,6 +21,9 @@ class ChargePointTest {
 
   private static final Duration WAIT = Duration.ofSeconds(5);
   private static final HttpClient CLIENT = HttpClient.newHttpClient();
+  // Short and without a random part, so the tests see the reconnection quickly.
+  private static final ReconnectPolicy QUICK_RECONNECT =
+      new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0);
 
   private final FakeCentralSystem centralSystem = FakeCentralSystem.start();
   private final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
@@ -75,17 +80,53 @@ class ChargePointTest {
   }
 
   @Test
-  void stopsAtOnceWhenTheConnectionCloses() throws Exception {
+  void connectsAgainAtOnceWhenTheConnectionIsLost() throws Exception {
     centralSystem.answerBootsWith(300);
     run();
     nextCall();
 
     centralSystem.disconnect();
 
+    // The heartbeat interval is 300s: a boot within the wait shows the loss was noticed at once.
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void keepsTryingUntilTheCentralSystemIsBackThenStartsTheBackOffOver() throws Exception {
+    URI url = centralSystem.url();
+    centralSystem.close();
+    ChargePoint chargePoint =
+        new ChargePoint(
+            CLIENT,
+            url,
+            "CP-TEST",
+            WAIT,
+            new ReconnectPolicy(Duration.ofMillis(10), Duration.ZERO, 3));
+    run(chargePoint);
+    await().atMost(WAIT).until(() -> chargePoint.failedAttempts() >= 3);
+
+    try (FakeCentralSystem restarted = FakeCentralSystem.start(url.getPort())) {
+      restarted.answerBootsWith(300);
+
+      assertThat(((Call) restarted.nextFrame(WAIT)).action()).isEqualTo("BootNotification");
+      await().atMost(WAIT).until(() -> chargePoint.failedAttempts() == 0);
+      assertThat(failure.get()).isNull();
+    }
+  }
+
+  @Test
+  void stopsWhenItsThreadIsInterrupted() throws Exception {
+    centralSystem.answerBootsWith(300);
+    run();
+    nextCall();
+
     Thread chargePoint = Objects.requireNonNull(running);
+    chargePoint.interrupt();
     chargePoint.join(WAIT);
+
     assertThat(chargePoint.isAlive()).isFalse();
-    assertThat(failure.get()).isInstanceOf(SessionFailedException.class);
+    assertThat(failure.get()).isNull();
   }
 
   private Call nextCall() throws InterruptedException {
@@ -94,7 +135,10 @@ class ChargePointTest {
 
   // Never on the test thread: a charge point that fails to stop would hang the build.
   private void run() {
-    ChargePoint chargePoint = new ChargePoint(CLIENT, centralSystem.url(), "CP-TEST", WAIT);
+    run(new ChargePoint(CLIENT, centralSystem.url(), "CP-TEST", WAIT, QUICK_RECONNECT));
+  }
+
+  private void run(ChargePoint chargePoint) {
     running =
         Thread.ofPlatform()
             .start(

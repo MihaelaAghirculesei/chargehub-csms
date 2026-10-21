@@ -1,9 +1,10 @@
 package io.github.mihaelaaghirculesei.simulator;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
+import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -17,7 +18,13 @@ class ChargePointRunnerTest {
   private final HttpClient client = HttpClient.newHttpClient();
   private final FakeCentralSystem centralSystem = FakeCentralSystem.start();
   private final ChargePointRunner runner =
-      new ChargePointRunner(new ChargePoint(client, centralSystem.url(), "CP-RUN", WAIT));
+      new ChargePointRunner(
+          new ChargePoint(
+              client,
+              centralSystem.url(),
+              "CP-RUN",
+              WAIT,
+              new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0)));
 
   @BeforeEach
   void acceptBoots() {
@@ -44,12 +51,13 @@ class ChargePointRunnerTest {
   }
 
   @Test
-  void endsWhenTheSessionFails() throws Exception {
+  void keepsRunningWhenTheSessionFails() throws Exception {
     runner.start();
     centralSystem.nextFrame(WAIT);
 
     centralSystem.disconnect();
 
-    await().atMost(WAIT).until(() -> !runner.isRunning());
+    assertThat(((Call) centralSystem.nextFrame(WAIT)).action()).isEqualTo("BootNotification");
+    assertThat(runner.isRunning()).isTrue();
   }
 }
