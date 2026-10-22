@@ -19,11 +19,16 @@ class SimulatorConfiguration {
   @Bean
   ChargePointRunner chargePointRunner(HttpClient httpClient, SimulatorProperties properties) {
     return new ChargePointRunner(
-        new ChargePoint(
-            httpClient,
-            properties.centralSystem(),
-            properties.chargePointId(),
-            properties.callTimeout(),
-            properties.reconnect().policy()));
+        properties.chargePoints().ids().stream()
+            .map(
+                id ->
+                    new ChargePoint(
+                        httpClient,
+                        properties.centralSystem(),
+                        id,
+                        properties.callTimeout(),
+                        properties.reconnect().policy()))
+            .toList(),
+        properties.chargePoints().startSpread());
   }
 }
