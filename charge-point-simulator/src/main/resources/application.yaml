@@ -1,3 +1,6 @@
 spring:
   application:
     name: charge-point-simulator
+  main:
+    # Virtual threads are daemon threads: without this the JVM would exit once Spring has started.
+    keep-alive: true
