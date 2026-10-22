@@ -16,8 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -37,6 +39,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 import tools.jackson.databind.node.ObjectNode;
@@ -55,6 +58,10 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   private final AtomicReference<CompletableFuture<WebSocketSession>> connected =
       new AtomicReference<>(new CompletableFuture<>());
   private volatile Function<Call, @Nullable String> answers = call -> null;
+  // Charge point id to the id of its open session, for tests that run several charge points.
+  private final Map<String, String> open = new ConcurrentHashMap<>();
+  // Session id to a wrapper that serializes sends: a test and an answer may send at the same time.
+  private final Map<String, WebSocketSession> sendable = new ConcurrentHashMap<>();
 
   private FakeCentralSystem(boolean ocpp16, int port) {
     this.ocpp16 = ocpp16;
@@ -97,9 +104,13 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
     send(CODEC.encode(frame));
   }
 
-  /** Sends text as it is, valid frame or not. */
-  public synchronized void send(String text) throws IOException {
-    session().sendMessage(new TextMessage(text));
+  /** Sends text as it is, valid frame or not, on the latest connection. */
+  public void send(String text) throws IOException {
+    send(session(), text);
+  }
+
+  private void send(WebSocketSession session, String text) throws IOException {
+    Objects.requireNonNull(sendable.get(session.getId())).sendMessage(new TextMessage(text));
   }
 
   /** From now on every call is answered with the text the function returns; null sends nothing. */
@@ -136,20 +147,34 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
 
   /** The id the charge point put in the path of its connection. */
   public String connectedChargePointId() {
-    String path = Objects.requireNonNull(session().getUri()).getPath();
+    return chargePointId(session());
+  }
+
+  /** The ids of all charge points connected right now. */
+  public Set<String> connectedChargePointIds() {
+    return Set.copyOf(open.keySet());
+  }
+
+  private static String chargePointId(WebSocketSession session) {
+    String path = Objects.requireNonNull(session.getUri()).getPath();
     return path.substring(path.lastIndexOf('/') + 1);
   }
 
   @Override
   public synchronized void afterConnectionEstablished(WebSocketSession session) {
+    sendable.put(
+        session.getId(), new ConcurrentWebSocketSessionDecorator(session, 5_000, 1024 * 1024));
     // The new connection can arrive before the server has seen the old one close.
     if (!connected.get().complete(session)) {
       connected.set(CompletableFuture.completedFuture(session));
     }
+    open.put(chargePointId(session), session.getId());
   }
 
   @Override
   public synchronized void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    open.remove(chargePointId(session), session.getId());
+    sendable.remove(session.getId());
     CompletableFuture<WebSocketSession> current = connected.get();
     if (current.isDone() && current.join().getId().equals(session.getId())) {
       connected.set(new CompletableFuture<>());
@@ -173,7 +198,7 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
     OcppFrame frame = CODEC.decode(message.getPayload());
     String answer = frame instanceof Call call ? answers.apply(call) : null;
     if (answer != null) {
-      send(answer);
+      send(session, answer);
     }
     // Only after the answer, so a test reacting to the frame never sends at the same time.
     received.add(frame);
