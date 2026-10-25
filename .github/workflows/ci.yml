@@ -57,16 +57,21 @@ jobs:
   compose:
     name: compose
     runs-on: ubuntu-24.04
-    # The image of the central system is built here from scratch, dependencies included.
+    # The images of the central system and the simulator are built here from scratch,
+    # dependencies included.
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # --wait returns only when every service reports healthy, so a broken healthcheck or an
-      # image that does not build fails here.
+      # image that does not build fails here. The sim profile includes the central system.
       - run: |
           cp deploy/.env.example deploy/.env
-          docker compose -f deploy/docker-compose.yml --profile app up --detach --wait --wait-timeout 900
+          docker compose -f deploy/docker-compose.yml --profile sim up --detach --wait --wait-timeout 900
+
+      # The definition of done of Phase 2, checked on every change.
+      - name: 100 simulated charge points stay connected
+        run: deploy/check-simulated-charge-points.sh 100 60
 
       - if: ${{ failure() }}
-        run: docker compose -f deploy/docker-compose.yml --profile app logs
+        run: docker compose -f deploy/docker-compose.yml --profile sim logs
