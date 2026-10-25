@@ -16,3 +16,4 @@ Why the project looks the way it does. How these records work is described in
 | [0009](0009-one-outstanding-call-per-charge-point.md) | Refuse a second call while one is outstanding | Accepted |
 | [0010](0010-simulator-as-a-first-class-component.md) | Build the charge point simulator as a first-class component | Accepted |
 | [0011](0011-virtual-threads-for-simulated-charge-points.md) | Run each simulated charge point on its own virtual thread | Accepted |
+| [0012](0012-container-images-from-a-multi-stage-dockerfile.md) | Build container images with one multi-stage Dockerfile | Accepted |
