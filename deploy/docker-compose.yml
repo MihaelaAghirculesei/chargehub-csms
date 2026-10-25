@@ -58,6 +58,8 @@ services:
       args:
         MODULE: csms-app
     image: chargehub/csms-app:local
+    # Built from the repository, never pulled: there is no such image in a registry.
+    pull_policy: build
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/csms
       SPRING_DATASOURCE_USERNAME: csms
@@ -91,6 +93,7 @@ services:
       args:
         MODULE: charge-point-simulator
     image: chargehub/charge-point-simulator:local
+    pull_policy: build
     environment:
       CHARGEHUB_SIMULATOR_CENTRAL_SYSTEM: ws://csms:8080/ocpp
       CHARGEHUB_SIMULATOR_CHARGE_POINTS_COUNT: 100
