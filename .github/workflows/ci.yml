@@ -57,14 +57,16 @@ jobs:
   compose:
     name: compose
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The image of the central system is built here from scratch, dependencies included.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # --wait returns only when every service reports healthy, so a broken healthcheck fails here.
+      # --wait returns only when every service reports healthy, so a broken healthcheck or an
+      # image that does not build fails here.
       - run: |
           cp deploy/.env.example deploy/.env
-          docker compose -f deploy/docker-compose.yml up --detach --wait --wait-timeout 300
+          docker compose -f deploy/docker-compose.yml --profile app up --detach --wait --wait-timeout 900
 
       - if: ${{ failure() }}
-        run: docker compose -f deploy/docker-compose.yml logs
+        run: docker compose -f deploy/docker-compose.yml --profile app logs

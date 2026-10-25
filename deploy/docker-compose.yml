@@ -49,5 +49,39 @@ services:
       retries: 30
       start_period: 30s
 
+  # Behind profiles, so a plain `docker compose up` starts only the infrastructure and the
+  # application can still run on the host with bootRun.
+  csms:
+    profiles: [app, sim]
+    build:
+      context: ..
+      args:
+        MODULE: csms-app
+    image: chargehub/csms-app:local
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/csms
+      SPRING_DATASOURCE_USERNAME: csms
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?copy deploy/.env.example to deploy/.env}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Readiness turns true once the application accepts traffic, and false again on shutdown.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          && printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          && read -r status_line <&3
+          && [[ $$status_line == *" 200 "* ]]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
 volumes:
   pgdata:
