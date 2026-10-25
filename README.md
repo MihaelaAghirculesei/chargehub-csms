@@ -72,6 +72,12 @@ set -a && . deploy/.env && set +a
 SPRING_PROFILES_ACTIVE=dev ./gradlew :csms-app:bootRun
 ```
 
+Or run it as a container, built from the repository with Docker alone ([ADR 0012](docs/adr/0012-container-images-from-a-multi-stage-dockerfile.md)). The first build downloads every dependency and takes several minutes:
+
+```bash
+docker compose -f deploy/docker-compose.yml --profile app up -d --build
+```
+
 A charge point connects to `ws://localhost:8080/ocpp/{chargePointId}` with the WebSocket subprotocol `ocpp1.6`. The id may contain letters, digits and `._:-`, up to 48 characters.
 
 With the application running, start 100 simulated charge points in a second terminal:
