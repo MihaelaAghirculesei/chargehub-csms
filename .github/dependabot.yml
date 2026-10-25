@@ -96,3 +96,25 @@ updates:
       # A new PostgreSQL or Keycloak major needs a data migration, so it is planned by hand.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+
+  # Updates the tags and digests of the base images in the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Rome
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      # The build stage and the runtime stage must run the same Java version.
+      temurin:
+        patterns:
+          - "eclipse-temurin"
+    ignore:
+      # Java moves from one LTS to the next by hand; versions in between are not LTS.
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
