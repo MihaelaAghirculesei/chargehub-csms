@@ -11,7 +11,7 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
 
 - **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that runs many charge points, each booting, sending heartbeats and reconnecting like a real one.
-- **Next:** a Docker image and compose profile for the simulator, then the charge point registry and live connector status.
+- **Next:** fault injection in the simulator, then the charge point registry and live connector status.
 
 ## Planned scope
 
@@ -54,6 +54,20 @@ Every pull request runs `./gradlew build` and starts the Docker Compose stack in
 CodeQL scans the code and SonarQube Cloud analyses every pull request. Test and coverage (JaCoCo) reports are uploaded as CI artifacts on every run, including failed ones.
 
 ## Quick start
+
+### Demo with Docker only
+
+The central system and 100 simulated charge points, built from the repository. The first build downloads every dependency and takes several minutes.
+
+```bash
+cp deploy/.env.example deploy/.env    # then set the passwords
+docker compose -f deploy/docker-compose.yml --profile sim up -d --build
+deploy/check-simulated-charge-points.sh    # all 100 accepted, none reconnecting for a minute
+```
+
+CI runs the same check on every change.
+
+### Development
 
 Requirements: JDK 25, Docker.
 
