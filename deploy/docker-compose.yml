@@ -83,5 +83,22 @@ services:
       retries: 30
       start_period: 30s
 
+  # The Phase 2 demo: `docker compose --profile sim up` starts 100 charge points against csms.
+  simulator:
+    profiles: [sim]
+    build:
+      context: ..
+      args:
+        MODULE: charge-point-simulator
+    image: chargehub/charge-point-simulator:local
+    environment:
+      CHARGEHUB_SIMULATOR_CENTRAL_SYSTEM: ws://csms:8080/ocpp
+      CHARGEHUB_SIMULATOR_CHARGE_POINTS_COUNT: 100
+    # The charge points reconnect by themselves, but connecting before the central system is
+    # ready would only fill the log with back-off messages.
+    depends_on:
+      csms:
+        condition: service_healthy
+
 volumes:
   pgdata:
