@@ -1,0 +1,15 @@
+# An allow list: only what the Gradle build needs is sent to Docker. Anything new stays out
+# until it is added here, so secrets such as deploy/.env never reach an image.
+*
+!gradle/
+!gradlew
+!settings.gradle.kts
+!build.gradle.kts
+!build-logic/
+!ocpp-protocol/
+!csms-app/
+!charge-point-simulator/
+
+# Outputs of a local build would be stale inside the image.
+**/build/
+**/.gradle/
