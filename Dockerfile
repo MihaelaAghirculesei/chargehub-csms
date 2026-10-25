@@ -7,7 +7,9 @@ ARG MODULE
 WORKDIR /workspace
 COPY . .
 # The cache mount keeps downloaded dependencies between builds without putting them in a layer.
-RUN --mount=type=cache,target=/root/.gradle \
+# Locked, because Compose builds several modules at once: Gradle processes in separate build
+# containers cannot ask each other to release the cache, and time out waiting for its lock.
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     ./gradlew --no-daemon --quiet ":${MODULE}:bootJar" \
     && java -Djarmode=tools -jar "${MODULE}/build/libs/${MODULE}.jar" \
         extract --layers --launcher --destination /extracted
