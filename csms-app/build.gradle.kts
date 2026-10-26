@@ -31,6 +31,8 @@ dependencies {
     // ArchUnit core inside Jupiter tests: the archunit-junit5 engine is built on JUnit Platform 1.x.
     testImplementation(libs.archunit)
     testImplementation(testFixtures(project(":ocpp-protocol")))
+    // Real simulated charge points in the integration tests, see docs/adr/0010.
+    testImplementation(project(":charge-point-simulator"))
     testImplementation(libs.snakeyaml)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
