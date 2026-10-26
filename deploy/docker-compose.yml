@@ -52,7 +52,7 @@ services:
   # Behind profiles, so a plain `docker compose up` starts only the infrastructure and the
   # application can still run on the host with bootRun.
   csms:
-    profiles: [app, sim]
+    profiles: [app, sim, chaos]
     build:
       context: ..
       args:
@@ -86,7 +86,7 @@ services:
       start_period: 30s
 
   # The Phase 2 demo: `docker compose --profile sim up` starts 100 charge points against csms.
-  simulator:
+  simulator: &simulator
     profiles: [sim]
     build:
       context: ..
@@ -94,7 +94,7 @@ services:
         MODULE: charge-point-simulator
     image: chargehub/charge-point-simulator:local
     pull_policy: build
-    environment:
+    environment: &simulator-environment
       CHARGEHUB_SIMULATOR_CENTRAL_SYSTEM: ws://csms:8080/ocpp
       CHARGEHUB_SIMULATOR_CHARGE_POINTS_COUNT: 100
     # The charge points reconnect by themselves, but connecting before the central system is
@@ -102,6 +102,15 @@ services:
     depends_on:
       csms:
         condition: service_healthy
+
+  # The same charge points with the faults of the simulator's chaos profile: dropped connections
+  # and calls that arrive twice.
+  simulator-chaos:
+    <<: *simulator
+    profiles: [chaos]
+    environment:
+      <<: *simulator-environment
+      SPRING_PROFILES_ACTIVE: chaos
 
 volumes:
   pgdata:
