@@ -1,0 +1,80 @@
+package io.github.mihaelaaghirculesei.csms.station.infrastructure;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+
+import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.FaultPolicy;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import tools.jackson.databind.node.ObjectNode;
+
+/**
+ * The central system against the simulator, the same charge point the demo and the load tests run.
+ * The frames of the specification examples are checked in {@link ChargePointSessionTest}.
+ */
+@SpringBootTest(
+    webEnvironment = WebEnvironment.RANDOM_PORT,
+    // The shortest interval OCPP can express keeps the test to a few seconds.
+    properties = "chargehub.station.heartbeat-interval=1s")
+@Import(TestcontainersConfiguration.class)
+class SimulatedChargePointTest {
+
+  private static final Duration WAIT = Duration.ofSeconds(30);
+  private static final Duration CALL_TIMEOUT = Duration.ofSeconds(5);
+  private static final ReconnectPolicy RECONNECT =
+      new ReconnectPolicy(Duration.ofMillis(100), Duration.ofMillis(100), 3);
+
+  @LocalServerPort private int port;
+  @MockitoSpyBean private BootNotificationHandler boots;
+  @MockitoSpyBean private HeartbeatHandler heartbeats;
+
+  @Test
+  void isAcceptedOnceAndKeepsSendingHeartbeats() throws Exception {
+    try (var _ = start("CP-SIM", FaultPolicy.NONE)) {
+      verify(heartbeats, timeout(WAIT.toMillis()).atLeast(2))
+          .handle(eq("CP-SIM"), any(ObjectNode.class));
+      verify(boots).handle(eq("CP-SIM"), any(ObjectNode.class));
+    }
+  }
+
+  /** Runs a simulated charge point on its own thread until the returned handle is closed. */
+  private AutoCloseable start(String chargePointId, FaultPolicy faults) {
+    HttpClient client = HttpClient.newHttpClient();
+    ChargePoint chargePoint =
+        new ChargePoint(
+            client,
+            URI.create("ws://localhost:" + port + "/ocpp"),
+            chargePointId,
+            CALL_TIMEOUT,
+            RECONNECT,
+            faults);
+    Thread thread =
+        Thread.ofVirtual()
+            .name(chargePointId)
+            .start(
+                () -> {
+                  try {
+                    chargePoint.run();
+                  } catch (InterruptedException e) {
+                    // Interrupted by the test: the charge point is done.
+                  }
+                });
+    return () -> {
+      thread.interrupt();
+      thread.join(WAIT);
+      client.close();
+    };
+  }
+}
