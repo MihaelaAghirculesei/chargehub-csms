@@ -65,11 +65,13 @@ record SimulatorProperties(
 
   /**
    * @param meanTimeBetweenDrops see {@link FaultPolicy}; unset, connections never drop
+   * @param duplicateCallProbability see {@link FaultPolicy}
    */
-  record Faults(@Nullable Duration meanTimeBetweenDrops) {
+  record Faults(
+      @Nullable Duration meanTimeBetweenDrops, @DefaultValue("0") double duplicateCallProbability) {
 
     FaultPolicy policy() {
-      return new FaultPolicy(meanTimeBetweenDrops);
+      return new FaultPolicy(meanTimeBetweenDrops, duplicateCallProbability);
     }
   }
 }

@@ -8,6 +8,8 @@ import java.time.Duration;
 import java.util.random.RandomGenerator;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class FaultPolicyTest {
 
@@ -21,7 +23,7 @@ class FaultPolicyTest {
 
   @Test
   void dropsAfterTheMeanTimeOnAverage() {
-    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(10));
+    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(10), 0);
 
     double averageMillis =
         IntStream.range(0, 10_000)
@@ -36,6 +38,29 @@ class FaultPolicyTest {
   void refusesAMeanTimeThatIsNotPositive() {
     Duration zero = Duration.ZERO;
 
-    assertThatThrownBy(() -> new FaultPolicy(zero)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new FaultPolicy(zero, 0)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void neverDuplicatesByDefault() {
+    assertThat(IntStream.range(0, 1_000).filter(i -> FaultPolicy.NONE.duplicatesNextCall(random)))
+        .isEmpty();
+  }
+
+  @Test
+  void duplicatesTheConfiguredShareOfCalls() {
+    FaultPolicy faults = new FaultPolicy(null, 0.3);
+
+    long duplicated =
+        IntStream.range(0, 10_000).filter(i -> faults.duplicatesNextCall(random)).count();
+
+    assertThat(duplicated).isBetween(2_800L, 3_200L);
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {-0.1, 1.1, Double.NaN})
+  void refusesAProbabilityOutsideZeroToOne(double probability) {
+    assertThatThrownBy(() -> new FaultPolicy(null, probability))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
