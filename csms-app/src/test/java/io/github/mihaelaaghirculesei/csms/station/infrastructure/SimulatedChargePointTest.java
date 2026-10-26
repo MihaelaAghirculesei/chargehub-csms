@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
@@ -46,6 +47,21 @@ class SimulatedChargePointTest {
       verify(heartbeats, timeout(WAIT.toMillis()).atLeast(2))
           .handle(eq("CP-SIM"), any(ObjectNode.class));
       verify(boots).handle(eq("CP-SIM"), any(ObjectNode.class));
+    }
+  }
+
+  @Test
+  void keepsServingAChargePointThatDropsItsConnectionAndRepeatsCalls() throws Exception {
+    // Mean longer than the heartbeat interval, so most connections live long enough to send one.
+    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(2), 1);
+    try (var _ = start("CP-CHAOS", faults)) {
+      // Every call arrives twice, and each connection boots: six boots are three connections.
+      verify(boots, timeout(WAIT.toMillis()).atLeast(6))
+          .handle(eq("CP-CHAOS"), any(ObjectNode.class));
+      // Only the heartbeats after the reconnects count.
+      clearInvocations(heartbeats);
+      verify(heartbeats, timeout(WAIT.toMillis()).atLeastOnce())
+          .handle(eq("CP-CHAOS"), any(ObjectNode.class));
     }
   }
 
