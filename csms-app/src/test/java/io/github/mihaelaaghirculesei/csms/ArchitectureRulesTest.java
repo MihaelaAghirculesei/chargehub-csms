@@ -1,5 +1,7 @@
 package io.github.mihaelaaghirculesei.csms;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -22,6 +24,23 @@ class ArchitectureRulesTest {
     ArchitectureRules.noJackson2Databind()
         .because("Jackson 2 is on the classpath only for springdoc; see docs/adr/0005")
         .check(ALL_CLASSES);
+  }
+
+  @Test
+  void domainCodeDependsOnNoFrameworkAndNoWireFormat() {
+    noClasses()
+        .that()
+        .resideInAPackage(ROOT + "..domain..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(
+            "org.springframework..",
+            "jakarta.persistence..",
+            "org.hibernate..",
+            "tools.jackson..",
+            "io.github.mihaelaaghirculesei.ocpp..")
+        .because("business rules are tested on their own and outlive frameworks and protocols")
+        .check(PRODUCTION_CLASSES);
   }
 
   @Test
