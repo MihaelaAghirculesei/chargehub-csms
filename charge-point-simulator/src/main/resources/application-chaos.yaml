@@ -1,0 +1,7 @@
+# Charge points that misbehave on purpose, to test the central system. With 100 of them a
+# connection drops every six seconds on average, and one call in ten arrives twice.
+chargehub:
+  simulator:
+    faults:
+      mean-time-between-drops: 10m
+      duplicate-call-probability: 0.1

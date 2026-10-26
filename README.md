@@ -10,8 +10,8 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 
 A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
 
-- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that runs many charge points, each booting, sending heartbeats and reconnecting like a real one.
-- **Next:** fault injection in the simulator, then the charge point registry and live connector status.
+- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that runs many charge points, each booting, sending heartbeats and reconnecting like a real one, and dropping connections or repeating calls on purpose.
+- **Next:** the simulator as a test fixture for the central system, then the charge point registry and live connector status.
 
 ## Planned scope
 
@@ -66,6 +66,12 @@ deploy/check-simulated-charge-points.sh    # all 100 accepted, none reconnecting
 ```
 
 CI runs the same check on every change.
+
+The same charge points can misbehave on purpose: with the `chaos` profile their connections drop at random and some calls arrive twice (`charge-point-simulator/src/main/resources/application-chaos.yaml`).
+
+```bash
+docker compose -f deploy/docker-compose.yml --profile chaos up -d --build
+```
 
 ### Development
 
