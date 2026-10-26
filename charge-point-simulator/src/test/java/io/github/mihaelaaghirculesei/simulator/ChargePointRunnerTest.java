@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.FaultPolicy;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -78,7 +79,8 @@ class ChargePointRunnerTest {
                         centralSystem.url(),
                         "CP-RUN-" + n,
                         WAIT,
-                        new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0)))
+                        new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0),
+                        FaultPolicy.NONE))
             .toList();
     runner = new ChargePointRunner(chargePoints, Duration.ofMillis(200));
     return runner;

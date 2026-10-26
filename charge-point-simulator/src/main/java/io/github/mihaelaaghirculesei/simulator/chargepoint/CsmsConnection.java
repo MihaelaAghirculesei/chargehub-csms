@@ -26,6 +26,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,8 @@ public final class CsmsConnection implements AutoCloseable {
   private final Object sendLock = new Object();
   // The JDK client refuses a send while the previous one is still running, so sends are chained.
   private CompletableFuture<?> lastSend = CompletableFuture.completedFuture(null);
+  private final AtomicReference<CompletableFuture<?>> drop =
+      new AtomicReference<>(CompletableFuture.completedFuture(null));
   private @Nullable WebSocket webSocket;
 
   private CsmsConnection(String chargePointId, Duration callTimeout) {
@@ -118,8 +121,27 @@ public final class CsmsConnection implements AutoCloseable {
     return closed.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
   }
 
+  /**
+   * Drops the connection after the given time without a close frame, as a failing network would.
+   * Calls in progress fail at once, as they do when the central system closes the connection.
+   */
+  public void dropAfter(Duration delay) {
+    drop.set(
+        CompletableFuture.runAsync(
+            this::drop,
+            CompletableFuture.delayedExecutor(delay.toMillis(), TimeUnit.MILLISECONDS)));
+  }
+
+  private void drop() {
+    log.info("Dropping the connection of {} on purpose", chargePointId);
+    Objects.requireNonNull(webSocket).abort();
+    // An aborted WebSocket tells its listener nothing.
+    closed();
+  }
+
   @Override
   public void close() {
+    drop.get().cancel(false);
     // Set by open before anyone can call close. When the output is already closed the future just
     // fails: nothing to do, the connection is going away anyway.
     var _ = Objects.requireNonNull(webSocket).sendClose(WebSocket.NORMAL_CLOSURE, "");

@@ -33,6 +33,7 @@ public final class ChargePoint {
   private final String id;
   private final Duration callTimeout;
   private final ReconnectPolicy reconnect;
+  private final FaultPolicy faults;
   private final RandomGenerator random = RandomGenerator.getDefault();
   // Read by tests from another thread.
   private final AtomicInteger failedAttempts = new AtomicInteger();
@@ -42,12 +43,14 @@ public final class ChargePoint {
       URI centralSystem,
       String id,
       Duration callTimeout,
-      ReconnectPolicy reconnect) {
+      ReconnectPolicy reconnect,
+      FaultPolicy faults) {
     this.client = client;
     this.centralSystem = centralSystem;
     this.id = id;
     this.callTimeout = callTimeout;
     this.reconnect = reconnect;
+    this.faults = faults;
   }
 
   public String id() {
@@ -73,6 +76,7 @@ public final class ChargePoint {
 
   private void session() throws InterruptedException {
     try (CsmsConnection connection = CsmsConnection.open(client, centralSystem, id, callTimeout)) {
+      faults.nextDrop(random).ifPresent(connection::dropAfter);
       Duration heartbeatInterval = boot(connection);
       // A charge point that was accepted again starts its back-off from the beginning.
       failedAttempts.set(0);
@@ -105,7 +109,7 @@ public final class ChargePoint {
   private static void waitOrFail(CsmsConnection connection, Duration interval)
       throws InterruptedException {
     if (connection.awaitClosed(interval)) {
-      throw new SessionFailedException("Connection closed by the central system", null);
+      throw new SessionFailedException("Connection lost", null);
     }
   }
 }

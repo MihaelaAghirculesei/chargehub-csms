@@ -102,7 +102,8 @@ class ChargePointTest {
             url,
             "CP-TEST",
             WAIT,
-            new ReconnectPolicy(Duration.ofMillis(10), Duration.ZERO, 3));
+            new ReconnectPolicy(Duration.ofMillis(10), Duration.ZERO, 3),
+            FaultPolicy.NONE);
     run(chargePoint);
     await().atMost(WAIT).until(() -> chargePoint.failedAttempts() >= 3);
 
@@ -113,6 +114,18 @@ class ChargePointTest {
       await().atMost(WAIT).until(() -> chargePoint.failedAttempts() == 0);
       assertThat(failure.get()).isNull();
     }
+  }
+
+  @Test
+  void dropsItsConnectionAtRandomTimesAndConnectsAgain() throws Exception {
+    centralSystem.answerBootsWith(300);
+    run(new FaultPolicy(Duration.ofMillis(200)));
+
+    // The heartbeat interval is 300s: every boot after the first one follows a drop.
+    for (int boot = 0; boot < 3; boot++) {
+      assertThat(nextCall().action()).isEqualTo("BootNotification");
+    }
+    assertThat(failure.get()).isNull();
   }
 
   @Test
@@ -135,7 +148,11 @@ class ChargePointTest {
 
   // Never on the test thread: a charge point that fails to stop would hang the build.
   private void run() {
-    run(new ChargePoint(CLIENT, centralSystem.url(), "CP-TEST", WAIT, QUICK_RECONNECT));
+    run(FaultPolicy.NONE);
+  }
+
+  private void run(FaultPolicy faults) {
+    run(new ChargePoint(CLIENT, centralSystem.url(), "CP-TEST", WAIT, QUICK_RECONNECT, faults));
   }
 
   private void run(ChargePoint chargePoint) {
