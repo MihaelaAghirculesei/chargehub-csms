@@ -25,6 +25,9 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import tools.jackson.databind.node.JsonNodeFactory;
 
 class CsmsConnectionTest {
@@ -209,6 +212,24 @@ class CsmsConnectionTest {
       centralSystem.disconnect();
 
       assertThat(connection.awaitClosed(WAIT)).isTrue();
+    }
+  }
+
+  @Test
+  @ExtendWith(OutputCaptureExtension.class)
+  void sendsACallTwiceAndExpectsTheSecondAnswer(CapturedOutput output) throws Exception {
+    centralSystem.answerBootsWith(300);
+
+    try (CsmsConnection connection = open(WAIT)) {
+      BootNotificationResponse response =
+          connection.callTwice(Action.BOOT_NOTIFICATION, BOOT, BootNotificationResponse.class);
+      // Answers arrive in order: once this one is back, so is the second answer to the first call.
+      connection.call(Action.BOOT_NOTIFICATION, BOOT, BootNotificationResponse.class);
+
+      assertThat(response.status()).isEqualTo(RegistrationStatus.ACCEPTED);
+      OcppFrame first = centralSystem.nextFrame(WAIT);
+      assertThat(centralSystem.nextFrame(WAIT)).isEqualTo(first);
+      assertThat(output).doesNotContain("matches no outstanding call");
     }
   }
 

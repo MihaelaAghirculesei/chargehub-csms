@@ -51,6 +51,8 @@ public final class CsmsConnection implements AutoCloseable {
   private CompletableFuture<?> lastSend = CompletableFuture.completedFuture(null);
   private final AtomicReference<CompletableFuture<?>> drop =
       new AtomicReference<>(CompletableFuture.completedFuture(null));
+  // The second answer to a call sent twice matches nothing, and is no reason for a warning.
+  private final AtomicReference<@Nullable String> duplicated = new AtomicReference<>();
   private @Nullable WebSocket webSocket;
 
   private CsmsConnection(String chargePointId, Duration callTimeout) {
@@ -97,11 +99,30 @@ public final class CsmsConnection implements AutoCloseable {
    */
   public <T> T call(Action action, Object request, Class<T> responseType)
       throws InterruptedException {
+    return call(action, request, responseType, false);
+  }
+
+  /**
+   * Like {@link #call}, but sends the request twice with the same message id, as a charge point
+   * does when it repeats a call it thinks was lost.
+   */
+  public <T> T callTwice(Action action, Object request, Class<T> responseType)
+      throws InterruptedException {
+    return call(action, request, responseType, true);
+  }
+
+  private <T> T call(Action action, Object request, Class<T> responseType, boolean twice)
+      throws InterruptedException {
     ObjectNode payload = OcppMessages.write(request);
     requireValid(action, PayloadType.REQUEST, payload);
     Call call = new Call(UUID.randomUUID().toString(), action.wireName(), payload);
     CompletableFuture<CallResult> answer = pendingCalls.begin(chargePointId, call);
-    send(Objects.requireNonNull(webSocket), CODEC.encode(call));
+    String frame = CODEC.encode(call);
+    send(Objects.requireNonNull(webSocket), frame);
+    if (twice) {
+      duplicated.set(call.messageId());
+      send(webSocket, frame);
+    }
     CallResult result;
     try {
       result = answer.get();
@@ -220,7 +241,7 @@ public final class CsmsConnection implements AutoCloseable {
               yield true;
             }
           };
-      if (!matched) {
+      if (!matched && !frame.messageId().equals(duplicated.get())) {
         log.warn("Dropping an answer to {} that matches no outstanding call", chargePointId);
       }
     }

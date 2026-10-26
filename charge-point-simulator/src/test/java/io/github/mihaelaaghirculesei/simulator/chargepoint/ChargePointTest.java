@@ -10,6 +10,7 @@ import io.github.mihaelaaghirculesei.simulator.FakeCentralSystem;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
@@ -119,11 +120,25 @@ class ChargePointTest {
   @Test
   void dropsItsConnectionAtRandomTimesAndConnectsAgain() throws Exception {
     centralSystem.answerBootsWith(300);
-    run(new FaultPolicy(Duration.ofMillis(200)));
+    run(new FaultPolicy(Duration.ofMillis(200), 0));
 
     // The heartbeat interval is 300s: every boot after the first one follows a drop.
     for (int boot = 0; boot < 3; boot++) {
       assertThat(nextCall().action()).isEqualTo("BootNotification");
+    }
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void sendsEveryCallTwiceWhenAlwaysDuplicating() throws Exception {
+    centralSystem.answerBootsWith(1);
+    run(new FaultPolicy(null, 1));
+
+    for (String action : List.of("BootNotification", "Heartbeat")) {
+      Call first = nextCall();
+      Call second = nextCall();
+      assertThat(first.action()).isEqualTo(action);
+      assertThat(second).isEqualTo(first);
     }
     assertThat(failure.get()).isNull();
   }

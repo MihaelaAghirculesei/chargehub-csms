@@ -83,8 +83,11 @@ public final class ChargePoint {
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
       while (!Thread.currentThread().isInterrupted()) {
         waitOrFail(connection, heartbeatInterval);
-        connection.call(
-            Action.HEARTBEAT, JsonNodeFactory.instance.objectNode(), HeartbeatResponse.class);
+        call(
+            connection,
+            Action.HEARTBEAT,
+            JsonNodeFactory.instance.objectNode(),
+            HeartbeatResponse.class);
       }
     }
   }
@@ -93,8 +96,11 @@ public final class ChargePoint {
   private Duration boot(CsmsConnection connection) throws InterruptedException {
     while (true) {
       BootNotificationResponse response =
-          connection.call(
-              Action.BOOT_NOTIFICATION, BOOT_NOTIFICATION, BootNotificationResponse.class);
+          call(
+              connection,
+              Action.BOOT_NOTIFICATION,
+              BOOT_NOTIFICATION,
+              BootNotificationResponse.class);
       Duration interval =
           response.interval() > 0 ? Duration.ofSeconds(response.interval()) : OWN_INTERVAL;
       if (response.status() == RegistrationStatus.ACCEPTED) {
@@ -103,6 +109,14 @@ public final class ChargePoint {
       log.info("Charge point {} is {}, booting again in {}", id, response.status(), interval);
       waitOrFail(connection, interval);
     }
+  }
+
+  private <T> T call(
+      CsmsConnection connection, Action action, Object request, Class<T> responseType)
+      throws InterruptedException {
+    return faults.duplicatesNextCall(random)
+        ? connection.callTwice(action, request, responseType)
+        : connection.call(action, request, responseType);
   }
 
   // Waiting on the connection instead of sleeping notices a lost connection at once.
