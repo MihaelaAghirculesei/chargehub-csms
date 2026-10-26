@@ -1,10 +1,12 @@
 package io.github.mihaelaaghirculesei.simulator;
 
+import io.github.mihaelaaghirculesei.simulator.chargepoint.FaultPolicy;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -13,13 +15,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param chargePoints how many charge points to run and how they are named
  * @param callTimeout how long the central system may take to answer
  * @param reconnect the back-off before connecting again, see {@link ReconnectPolicy}
+ * @param faults the faults the charge points produce on purpose, all off unless configured
  */
 @ConfigurationProperties("chargehub.simulator")
 record SimulatorProperties(
     @DefaultValue("ws://localhost:8080/ocpp") URI centralSystem,
     @DefaultValue ChargePoints chargePoints,
     @DefaultValue("30s") Duration callTimeout,
-    @DefaultValue Reconnect reconnect) {
+    @DefaultValue Reconnect reconnect,
+    @DefaultValue Faults faults) {
 
   /**
    * @param count how many charge points run, each on its own connection
@@ -56,6 +60,16 @@ record SimulatorProperties(
 
     ReconnectPolicy policy() {
       return new ReconnectPolicy(waitMinimum, randomRange, repeatTimes);
+    }
+  }
+
+  /**
+   * @param meanTimeBetweenDrops see {@link FaultPolicy}; unset, connections never drop
+   */
+  record Faults(@Nullable Duration meanTimeBetweenDrops) {
+
+    FaultPolicy policy() {
+      return new FaultPolicy(meanTimeBetweenDrops);
     }
   }
 }

@@ -27,7 +27,8 @@ class SimulatorConfiguration {
                         properties.centralSystem(),
                         id,
                         properties.callTimeout(),
-                        properties.reconnect().policy()))
+                        properties.reconnect().policy(),
+                        properties.faults().policy()))
             .toList(),
         properties.chargePoints().startSpread());
   }

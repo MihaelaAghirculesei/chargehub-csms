@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.simulator.chargepoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import io.github.mihaelaaghirculesei.ocpp.call.CallErrorException;
 import io.github.mihaelaaghirculesei.ocpp.call.ConnectionClosedException;
@@ -208,6 +209,31 @@ class CsmsConnectionTest {
       centralSystem.disconnect();
 
       assertThat(connection.awaitClosed(WAIT)).isTrue();
+    }
+  }
+
+  @Test
+  void dropsTheConnectionWithoutTellingTheCentralSystem() throws Exception {
+    try (CsmsConnection connection = open(WAIT)) {
+      await().atMost(WAIT).until(() -> centralSystem.connectedChargePointIds().contains("CP-1"));
+
+      connection.dropAfter(Duration.ofMillis(100));
+
+      assertThat(connection.awaitClosed(WAIT)).isTrue();
+      await().atMost(WAIT).until(() -> centralSystem.connectedChargePointIds().isEmpty());
+    }
+  }
+
+  @Test
+  void failsACallInProgressAtOnceWhenTheConnectionDrops() {
+    centralSystem.answerWith(call -> null);
+
+    try (CsmsConnection connection = open(LONG_TIMEOUT)) {
+      connection.dropAfter(Duration.ofMillis(200));
+
+      assertThatThrownBy(
+              () -> connection.call(Action.BOOT_NOTIFICATION, BOOT, BootNotificationResponse.class))
+          .hasCauseInstanceOf(ConnectionClosedException.class);
     }
   }
 
