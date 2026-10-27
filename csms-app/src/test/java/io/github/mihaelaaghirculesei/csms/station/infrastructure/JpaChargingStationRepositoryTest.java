@@ -12,6 +12,7 @@ import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationReposito
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,6 +49,18 @@ class JpaChargingStationRepositoryTest {
     assertThat(loaded.connectors())
         .containsExactly(
             new Connector(Connector.WHOLE_STATION, AVAILABLE, T0), new Connector(1, CHARGING, T1));
+  }
+
+  @Test
+  void keepsWhetherTheStationIsOnlineAndWhenItWasLastSeen() {
+    inTransaction(
+        () ->
+            stations.save(
+                ChargingStation.restore("CP-OFFLINE", DETAILS, T0, T1, false, List.of())));
+
+    ChargingStation loaded = load("CP-OFFLINE");
+    assertThat(loaded.online()).isFalse();
+    assertThat(loaded.lastSeenAt()).isEqualTo(T1);
   }
 
   @Test

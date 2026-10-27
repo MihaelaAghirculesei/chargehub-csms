@@ -12,8 +12,8 @@ import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A charging station, what it said about itself at its last boot and the last known status of each
- * of its connectors.
+ * A charging station, what it said about itself at its last boot, whether it is online and the last
+ * known status of each of its connectors.
  *
  * <p>A station becomes known through its first boot: OCPP 1.6 lets a charge point send nothing else
  * before it is accepted. Connectors are learned from the reports, since a boot announces no
@@ -24,20 +24,25 @@ public final class ChargingStation {
   private final String id;
   private StationDetails details;
   private Instant lastBootAt;
+  private Instant lastSeenAt;
+  private boolean online;
   private final Map<Integer, Connector> connectors = new TreeMap<>();
 
-  private ChargingStation(String id, StationDetails details, Instant lastBootAt) {
+  private ChargingStation(
+      String id, StationDetails details, Instant lastBootAt, Instant lastSeenAt, boolean online) {
     if (id.isBlank()) {
       throw new IllegalArgumentException("Charging station id must not be blank");
     }
     this.id = id;
     this.details = details;
     this.lastBootAt = lastBootAt;
+    this.lastSeenAt = lastSeenAt;
+    this.online = online;
   }
 
-  /** A station that boots for the first time. */
+  /** A station that boots for the first time, and so is online. */
   public static ChargingStation register(String id, StationDetails details, Instant bootedAt) {
-    return new ChargingStation(id, details, bootedAt);
+    return new ChargingStation(id, details, bootedAt, bootedAt, true);
   }
 
   /**
@@ -45,8 +50,13 @@ public final class ChargingStation {
    * rules when they were reported.
    */
   public static ChargingStation restore(
-      String id, StationDetails details, Instant lastBootAt, List<Connector> connectors) {
-    ChargingStation station = new ChargingStation(id, details, lastBootAt);
+      String id,
+      StationDetails details,
+      Instant lastBootAt,
+      Instant lastSeenAt,
+      boolean online,
+      List<Connector> connectors) {
+    ChargingStation station = new ChargingStation(id, details, lastBootAt, lastSeenAt, online);
     connectors.forEach(connector -> station.connectors.put(connector.id(), connector));
     return station;
   }
@@ -61,6 +71,32 @@ public final class ChargingStation {
 
   public Instant lastBootAt() {
     return lastBootAt;
+  }
+
+  /** When the central system last heard from the station, by its own clock. */
+  public Instant lastSeenAt() {
+    return lastSeenAt;
+  }
+
+  public boolean online() {
+    return online;
+  }
+
+  /**
+   * Takes any message from the station as a sign that it is alive.
+   *
+   * @return the event to publish when the station was offline until now
+   */
+  public Optional<StationCameOnline> seen(Instant at) {
+    // Instances of the central system can disagree by a few milliseconds; never move back.
+    if (at.isAfter(lastSeenAt)) {
+      lastSeenAt = at;
+    }
+    if (online) {
+      return Optional.empty();
+    }
+    online = true;
+    return Optional.of(new StationCameOnline(id, at));
   }
 
   /**

@@ -32,7 +32,35 @@ class ChargingStationTest {
     assertThat(station.id()).isEqualTo("CP-1");
     assertThat(station.details()).isEqualTo(DETAILS);
     assertThat(station.lastBootAt()).isEqualTo(T0);
+    assertThat(station.lastSeenAt()).isEqualTo(T0);
+    assertThat(station.online()).isTrue();
     assertThat(station.connectors()).isEmpty();
+  }
+
+  @Test
+  void anOnlineStationSeenAgainOnlyMovesTheTime() {
+    assertThat(station.seen(T1)).isEmpty();
+
+    assertThat(station.lastSeenAt()).isEqualTo(T1);
+    assertThat(station.online()).isTrue();
+  }
+
+  @Test
+  void anOfflineStationSeenAgainComesOnline() {
+    ChargingStation offline = ChargingStation.restore("CP-1", DETAILS, T0, T0, false, List.of());
+
+    assertThat(offline.seen(T2)).contains(new StationCameOnline("CP-1", T2));
+    assertThat(offline.online()).isTrue();
+    assertThat(offline.lastSeenAt()).isEqualTo(T2);
+  }
+
+  @Test
+  void neverMovesTheLastSeenTimeBack() {
+    station.seen(T2);
+
+    station.seen(T1);
+
+    assertThat(station.lastSeenAt()).isEqualTo(T2);
   }
 
   @Test
@@ -51,10 +79,12 @@ class ChargingStationTest {
   void restoresTheConnectorsAsTheyWereSavedInIdOrder() {
     List<Connector> saved = List.of(new Connector(2, FINISHING, T1), new Connector(0, FAULTED, T0));
 
-    ChargingStation restored = ChargingStation.restore("CP-1", DETAILS, T0, saved);
+    ChargingStation restored = ChargingStation.restore("CP-1", DETAILS, T0, T1, false, saved);
 
     assertThat(restored.details()).isEqualTo(DETAILS);
     assertThat(restored.lastBootAt()).isEqualTo(T0);
+    assertThat(restored.lastSeenAt()).isEqualTo(T1);
+    assertThat(restored.online()).isFalse();
     assertThat(restored.connectors()).containsExactly(saved.get(1), saved.get(0));
   }
 
