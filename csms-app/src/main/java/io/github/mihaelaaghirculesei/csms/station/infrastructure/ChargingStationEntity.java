@@ -42,6 +42,10 @@ class ChargingStationEntity {
 
   private Instant lastBootAt;
 
+  private Instant lastSeenAt;
+
+  private boolean online;
+
   // Eager because the aggregate is always used whole, and mapping happens after the query.
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "connector", joinColumns = @JoinColumn(name = "charging_station_id"))
@@ -71,6 +75,8 @@ class ChargingStationEntity {
     serialNumber = details.serialNumber();
     firmwareVersion = details.firmwareVersion();
     lastBootAt = station.lastBootAt();
+    lastSeenAt = station.lastSeenAt();
+    online = station.online();
     Map<Integer, ConnectorColumns> reported = new HashMap<>();
     station
         .connectors()
@@ -86,7 +92,12 @@ class ChargingStationEntity {
             .map(e -> new Connector(e.getKey(), e.getValue().status(), e.getValue().reportedAt()))
             .toList();
     return ChargingStation.restore(
-        id, new StationDetails(vendor, model, serialNumber, firmwareVersion), lastBootAt, restored);
+        id,
+        new StationDetails(vendor, model, serialNumber, firmwareVersion),
+        lastBootAt,
+        lastSeenAt,
+        online,
+        restored);
   }
 
   @Embeddable
