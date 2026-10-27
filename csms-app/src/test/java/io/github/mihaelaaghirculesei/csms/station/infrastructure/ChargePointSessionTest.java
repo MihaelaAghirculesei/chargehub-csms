@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.ocpp.infrastructure.TestChargePoint;
+import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
+import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -27,6 +30,7 @@ class ChargePointSessionTest {
   private static final Instant NOW = Instant.parse("2026-10-17T10:15:30.123Z");
 
   @LocalServerPort private int port;
+  @Autowired private ChargingStationRepository stations;
 
   // Only declared to replace the Clock bean with clock() below; the test never reads it.
   @SuppressWarnings("UnusedVariable")
@@ -47,6 +51,8 @@ class ChargePointSessionTest {
           .isEqualTo(
               "[3,\"19223201\",{\"status\":\"Accepted\","
                   + "\"currentTime\":\"2026-10-17T10:15:30.123Z\",\"interval\":300}]");
+      // Read without waiting: the station is stored before the answer is sent.
+      assertThat(stations.findById("CP-DOD")).map(ChargingStation::lastBootAt).contains(NOW);
 
       chargePoint.send("[2,\"19223202\",\"Heartbeat\",{}]");
       assertThat(chargePoint.nextFrame(WAIT))
