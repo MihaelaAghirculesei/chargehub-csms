@@ -12,6 +12,7 @@ import io.github.mihaelaaghirculesei.ocpp.payload.Action;
 import java.time.Clock;
 import java.time.Instant;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.node.ObjectNode;
@@ -26,12 +27,17 @@ class BootNotificationHandler implements ActionHandler {
 
   private final Clock clock;
   private final ChargingStationRepository stations;
+  private final ApplicationEventPublisher events;
   private final int heartbeatIntervalSeconds;
 
   BootNotificationHandler(
-      Clock clock, ChargingStationRepository stations, StationProperties properties) {
+      Clock clock,
+      ChargingStationRepository stations,
+      ApplicationEventPublisher events,
+      StationProperties properties) {
     this.clock = clock;
     this.stations = stations;
+    this.events = events;
     this.heartbeatIntervalSeconds = Math.toIntExact(properties.heartbeatInterval().toSeconds());
   }
 
@@ -61,6 +67,7 @@ class BootNotificationHandler implements ActionHandler {
                   return known;
                 })
             .orElseGet(() -> ChargingStation.register(chargePointId, details, now));
+    station.seen(now).ifPresent(events::publishEvent);
     stations.save(station);
     return OcppMessages.write(
         new BootNotificationResponse(RegistrationStatus.ACCEPTED, now, heartbeatIntervalSeconds));

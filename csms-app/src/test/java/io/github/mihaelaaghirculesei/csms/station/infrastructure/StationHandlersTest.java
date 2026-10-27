@@ -9,6 +9,7 @@ import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatusChanged;
+import io.github.mihaelaaghirculesei.csms.station.domain.StationCameOnline;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import io.github.mihaelaaghirculesei.ocpp.payload.PayloadValidator;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -31,11 +32,17 @@ class StationHandlersTest {
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-10-17T10:15:30.123Z"), ZoneOffset.UTC);
 
+  private static final Instant AN_HOUR_AGO = CLOCK.instant().minusSeconds(3600);
+  private static final StationDetails DETAILS =
+      new StationDetails("VendorX", "SingleSocketCharger", null, null);
+
   private final PayloadValidator validator = PayloadValidator.ocpp16();
   private final InMemoryStations stations = new InMemoryStations();
-  private final BootNotificationHandler boots =
-      new BootNotificationHandler(CLOCK, stations, new StationProperties(Duration.ofMinutes(2)));
   private final List<Object> published = new ArrayList<>();
+  private final BootNotificationHandler boots =
+      new BootNotificationHandler(
+          CLOCK, stations, published::add, new StationProperties(Duration.ofMinutes(2)));
+  private final HeartbeatHandler heartbeats = new HeartbeatHandler(CLOCK, stations, published::add);
   private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
   private final StatusNotificationHandler statuses =
       new StatusNotificationHandler(CLOCK, stations, published::add, meters);
@@ -148,11 +155,43 @@ class StationHandlersTest {
 
   @Test
   void answersAHeartbeatWithTheCurrentTime() {
-    ObjectNode response =
-        new HeartbeatHandler(CLOCK).handle("CP-1", JsonNodeFactory.instance.objectNode());
+    ObjectNode response = heartbeats.handle("CP-1", JsonNodeFactory.instance.objectNode());
 
     assertThat(response).isEqualTo(json("{\"currentTime\":\"2026-10-17T10:15:30.123Z\"}"));
     assertThat(validator.validate("Heartbeat", RESPONSE, response)).isEmpty();
+    assertThat(stations.findById("CP-1")).isEmpty();
+  }
+
+  @Test
+  void aHeartbeatMarksTheStationAsSeen() {
+    stations.save(ChargingStation.register("CP-1", DETAILS, AN_HOUR_AGO));
+
+    heartbeats.handle("CP-1", JsonNodeFactory.instance.objectNode());
+
+    assertThat(stations.findById("CP-1").orElseThrow().lastSeenAt()).isEqualTo(CLOCK.instant());
+    assertThat(published).isEmpty();
+  }
+
+  @Test
+  void anOfflineStationComesOnlineWithAnyMessage() {
+    stations.save(offline("CP-HEARTBEAT"));
+    stations.save(offline("CP-BOOT"));
+    stations.save(offline("CP-STATUS"));
+
+    heartbeats.handle("CP-HEARTBEAT", JsonNodeFactory.instance.objectNode());
+    boots.handle("CP-BOOT", bootNotification());
+    statuses.handle("CP-STATUS", statusNotification(1, "Available", "2026-10-17T10:15:00Z"));
+
+    assertThat(published)
+        .contains(
+            new StationCameOnline("CP-HEARTBEAT", CLOCK.instant()),
+            new StationCameOnline("CP-BOOT", CLOCK.instant()),
+            new StationCameOnline("CP-STATUS", CLOCK.instant()));
+    assertThat(stations.findById("CP-STATUS").orElseThrow().online()).isTrue();
+  }
+
+  private static ChargingStation offline(String id) {
+    return ChargingStation.restore(id, DETAILS, AN_HOUR_AGO, AN_HOUR_AGO, false, List.of());
   }
 
   private static ObjectNode bootNotification() {

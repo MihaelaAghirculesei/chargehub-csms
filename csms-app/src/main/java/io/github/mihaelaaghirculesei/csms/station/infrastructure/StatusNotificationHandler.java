@@ -75,6 +75,7 @@ class StatusNotificationHandler implements ActionHandler {
       count("unknown_station");
     } else {
       ChargingStation station = found.get();
+      station.seen(clock.instant()).ifPresent(events::publishEvent);
       ConnectorStatus reported = toDomain(report.status());
       ReportOutcome outcome = station.report(report.connectorId(), reported, reportedAt(report));
       stations.save(station);
