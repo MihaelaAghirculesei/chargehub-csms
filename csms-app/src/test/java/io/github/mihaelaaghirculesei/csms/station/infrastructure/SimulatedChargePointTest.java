@@ -1,5 +1,6 @@
 package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
@@ -7,6 +8,9 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
+import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
+import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
+import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.FaultPolicy;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
@@ -14,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -40,6 +45,7 @@ class SimulatedChargePointTest {
   @LocalServerPort private int port;
   @MockitoSpyBean private BootNotificationHandler boots;
   @MockitoSpyBean private HeartbeatHandler heartbeats;
+  @Autowired private ChargingStationRepository stations;
 
   @Test
   void isAcceptedOnceAndKeepsSendingHeartbeats() throws Exception {
@@ -48,6 +54,9 @@ class SimulatedChargePointTest {
           .handle(eq("CP-SIM"), any(ObjectNode.class));
       verify(boots).handle(eq("CP-SIM"), any(ObjectNode.class));
     }
+    assertThat(stations.findById("CP-SIM"))
+        .map(ChargingStation::details)
+        .contains(new StationDetails("ChargeHub", "Simulator", null, null));
   }
 
   @Test
