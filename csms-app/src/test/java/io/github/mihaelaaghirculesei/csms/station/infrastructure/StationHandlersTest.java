@@ -1,17 +1,23 @@
 package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
+import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.AVAILABLE;
+import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.PREPARING;
 import static io.github.mihaelaaghirculesei.ocpp.payload.PayloadType.RESPONSE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
+import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatusChanged;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import io.github.mihaelaaghirculesei.ocpp.payload.PayloadValidator;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,6 +34,9 @@ class StationHandlersTest {
   private final InMemoryStations stations = new InMemoryStations();
   private final BootNotificationHandler boots =
       new BootNotificationHandler(CLOCK, stations, new StationProperties(Duration.ofMinutes(2)));
+  private final List<Object> published = new ArrayList<>();
+  private final StatusNotificationHandler statuses =
+      new StatusNotificationHandler(CLOCK, stations, published::add);
 
   @Test
   void acceptsTheChargePointWithTheConfiguredHeartbeatInterval() {
@@ -69,6 +78,57 @@ class StationHandlersTest {
   }
 
   @Test
+  void appliesAReportedStatusAndPublishesTheChange() {
+    boots.handle("CP-1", bootNotification());
+
+    ObjectNode response =
+        statuses.handle("CP-1", statusNotification(1, "Available", "2026-10-17T10:15:00Z"));
+
+    Instant reportedAt = Instant.parse("2026-10-17T10:15:00Z");
+    assertThat(response).isEmpty();
+    assertThat(validator.validate("StatusNotification", RESPONSE, response)).isEmpty();
+    assertThat(stations.findById("CP-1").orElseThrow().connector(1))
+        .contains(new Connector(1, AVAILABLE, reportedAt));
+    assertThat(published)
+        .containsExactly(new ConnectorStatusChanged("CP-1", 1, null, AVAILABLE, reportedAt));
+  }
+
+  @Test
+  void takesTheTimeOfArrivalWhenTheReportHasNoTimestamp() {
+    boots.handle("CP-1", bootNotification());
+
+    statuses.handle(
+        "CP-1", json("{\"connectorId\":1,\"errorCode\":\"NoError\",\"status\":\"Preparing\"}"));
+
+    assertThat(stations.findById("CP-1").orElseThrow().connector(1))
+        .contains(new Connector(1, PREPARING, CLOCK.instant()));
+  }
+
+  @Test
+  void publishesNothingWhenTheReportIsNotApplied() {
+    boots.handle("CP-1", bootNotification());
+    statuses.handle("CP-1", statusNotification(1, "Available", "2026-10-17T10:15:00Z"));
+    published.clear();
+
+    statuses.handle("CP-1", statusNotification(1, "Finishing", "2026-10-17T10:15:10Z"));
+
+    assertThat(published).isEmpty();
+    assertThat(stations.findById("CP-1").orElseThrow().connector(1))
+        .map(Connector::status)
+        .contains(AVAILABLE);
+  }
+
+  @Test
+  void answersAReportOfAnUnknownStationWithoutStoringIt() {
+    ObjectNode response =
+        statuses.handle("CP-UNKNOWN", statusNotification(1, "Available", "2026-10-17T10:15:00Z"));
+
+    assertThat(response).isEmpty();
+    assertThat(stations.findById("CP-UNKNOWN")).isEmpty();
+    assertThat(published).isEmpty();
+  }
+
+  @Test
   void answersAHeartbeatWithTheCurrentTime() {
     ObjectNode response =
         new HeartbeatHandler(CLOCK).handle("CP-1", JsonNodeFactory.instance.objectNode());
@@ -79,6 +139,17 @@ class StationHandlersTest {
 
   private static ObjectNode bootNotification() {
     return json("{\"chargePointVendor\":\"VendorX\",\"chargePointModel\":\"SingleSocketCharger\"}");
+  }
+
+  private static ObjectNode statusNotification(int connectorId, String status, String timestamp) {
+    return json(
+        "{\"connectorId\":"
+            + connectorId
+            + ",\"errorCode\":\"NoError\",\"status\":\""
+            + status
+            + "\",\"timestamp\":\""
+            + timestamp
+            + "\"}");
   }
 
   private static ObjectNode json(String text) {
