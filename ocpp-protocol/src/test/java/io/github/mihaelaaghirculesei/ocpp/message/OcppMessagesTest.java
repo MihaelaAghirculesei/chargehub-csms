@@ -7,7 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mihaelaaghirculesei.ocpp.payload.PayloadValidator;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /** Every message written here must pass its official schema. */
@@ -72,6 +75,74 @@ class OcppMessagesTest {
         .containsExactlyInAnyOrder("chargePointVendor", "chargePointModel", "firmwareVersion");
     assertThat(validator.validate("BootNotification", REQUEST, payload)).isEmpty();
     assertThat(OcppMessages.read(payload, BootNotificationRequest.class)).isEqualTo(request);
+  }
+
+  @Test
+  void readsAStatusNotificationWithEveryField() {
+    ObjectNode payload =
+        json(
+            "{\"connectorId\":1,\"errorCode\":\"GroundFailure\",\"info\":\"Leak detected\","
+                + "\"status\":\"Faulted\",\"timestamp\":\"2013-02-01T20:53:32.486Z\","
+                + "\"vendorId\":\"VendorX\",\"vendorErrorCode\":\"E42\"}");
+
+    assertThat(validator.validate("StatusNotification", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, StatusNotificationRequest.class))
+        .isEqualTo(
+            new StatusNotificationRequest(
+                1,
+                ChargePointErrorCode.GROUND_FAILURE,
+                "Leak detected",
+                ChargePointStatus.FAULTED,
+                TIME,
+                "VendorX",
+                "E42"));
+  }
+
+  @Test
+  void readsAStatusNotificationWithoutTimestamp() {
+    StatusNotificationRequest request =
+        OcppMessages.read(
+            json("{\"connectorId\":0,\"errorCode\":\"NoError\",\"status\":\"Available\"}"),
+            StatusNotificationRequest.class);
+
+    assertThat(request.timestamp()).isNull();
+  }
+
+  /** Each constant must carry the exact name of the schema, or real charge points are refused. */
+  @ParameterizedTest
+  @EnumSource(ChargePointStatus.class)
+  void writesEveryStatusAsTheSchemaNamesIt(ChargePointStatus status) {
+    assertThat(
+            validator.validate(
+                "StatusNotification",
+                REQUEST,
+                statusNotification(status, ChargePointErrorCode.NO_ERROR)))
+        .isEmpty();
+  }
+
+  @ParameterizedTest
+  @EnumSource(ChargePointErrorCode.class)
+  void writesEveryErrorCodeAsTheSchemaNamesIt(ChargePointErrorCode errorCode) {
+    assertThat(
+            validator.validate(
+                "StatusNotification",
+                REQUEST,
+                statusNotification(ChargePointStatus.FAULTED, errorCode)))
+        .isEmpty();
+  }
+
+  @Test
+  void anEmptyPayloadIsAValidStatusNotificationResponse() {
+    assertThat(
+            validator.validate(
+                "StatusNotification", RESPONSE, JsonNodeFactory.instance.objectNode()))
+        .isEmpty();
+  }
+
+  private static ObjectNode statusNotification(
+      ChargePointStatus status, ChargePointErrorCode errorCode) {
+    return OcppMessages.write(
+        new StatusNotificationRequest(1, errorCode, null, status, TIME, null, null));
   }
 
   private static ObjectNode json(String text) {
