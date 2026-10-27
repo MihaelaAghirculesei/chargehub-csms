@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.csms;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,12 +24,12 @@ class FlywayMigrationTest {
   }
 
   @Test
-  void appliesBaselineMigration() {
-    boolean applied =
-        jdbc.sql("select success from flyway_schema_history where version = '1'")
+  void appliesEveryMigration() {
+    List<Boolean> applied =
+        jdbc.sql("select success from flyway_schema_history where version is not null")
             .query(Boolean.class)
-            .single();
+            .list();
 
-    assertThat(applied).isTrue();
+    assertThat(applied).hasSizeGreaterThanOrEqualTo(2).containsOnly(true);
   }
 }
