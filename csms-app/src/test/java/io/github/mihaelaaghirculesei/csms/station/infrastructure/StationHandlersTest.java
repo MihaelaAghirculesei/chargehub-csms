@@ -11,6 +11,7 @@ import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatusChanged;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import io.github.mihaelaaghirculesei.ocpp.payload.PayloadValidator;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,8 +36,9 @@ class StationHandlersTest {
   private final BootNotificationHandler boots =
       new BootNotificationHandler(CLOCK, stations, new StationProperties(Duration.ofMinutes(2)));
   private final List<Object> published = new ArrayList<>();
+  private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
   private final StatusNotificationHandler statuses =
-      new StatusNotificationHandler(CLOCK, stations, published::add);
+      new StatusNotificationHandler(CLOCK, stations, published::add, meters);
 
   @Test
   void acceptsTheChargePointWithTheConfiguredHeartbeatInterval() {
@@ -91,6 +93,7 @@ class StationHandlersTest {
         .contains(new Connector(1, AVAILABLE, reportedAt));
     assertThat(published)
         .containsExactly(new ConnectorStatusChanged("CP-1", 1, null, AVAILABLE, reportedAt));
+    assertThat(reports("applied")).isEqualTo(1);
   }
 
   @Test
@@ -116,6 +119,20 @@ class StationHandlersTest {
     assertThat(stations.findById("CP-1").orElseThrow().connector(1))
         .map(Connector::status)
         .contains(AVAILABLE);
+    assertThat(reports("rejected")).isEqualTo(1);
+  }
+
+  @Test
+  void countsEveryOutcome() {
+    boots.handle("CP-1", bootNotification());
+
+    statuses.handle("CP-1", statusNotification(1, "Charging", "2026-10-17T10:15:10Z"));
+    statuses.handle("CP-1", statusNotification(1, "Charging", "2026-10-17T10:15:10Z"));
+    statuses.handle("CP-1", statusNotification(1, "Available", "2026-10-17T10:15:00Z"));
+
+    assertThat(reports("applied")).isEqualTo(1);
+    assertThat(reports("unchanged")).isEqualTo(1);
+    assertThat(reports("stale")).isEqualTo(1);
   }
 
   @Test
@@ -126,6 +143,7 @@ class StationHandlersTest {
     assertThat(response).isEmpty();
     assertThat(stations.findById("CP-UNKNOWN")).isEmpty();
     assertThat(published).isEmpty();
+    assertThat(reports("unknown_station")).isEqualTo(1);
   }
 
   @Test
@@ -139,6 +157,10 @@ class StationHandlersTest {
 
   private static ObjectNode bootNotification() {
     return json("{\"chargePointVendor\":\"VendorX\",\"chargePointModel\":\"SingleSocketCharger\"}");
+  }
+
+  private double reports(String outcome) {
+    return meters.counter(StatusNotificationHandler.REPORTS_METRIC, "outcome", outcome).count();
   }
 
   private static ObjectNode statusNotification(int connectorId, String status, String timestamp) {
