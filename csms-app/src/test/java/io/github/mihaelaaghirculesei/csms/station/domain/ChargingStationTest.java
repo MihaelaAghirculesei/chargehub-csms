@@ -13,6 +13,7 @@ import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Rejected;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Stale;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Unchanged;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ChargingStationTest {
@@ -21,7 +22,41 @@ class ChargingStationTest {
   private static final Instant T1 = T0.plusSeconds(1);
   private static final Instant T2 = T0.plusSeconds(2);
 
-  private final ChargingStation station = new ChargingStation("CP-1");
+  private static final StationDetails DETAILS =
+      new StationDetails("VendorX", "SingleSocketCharger", "SN-1", "1.0.0");
+
+  private final ChargingStation station = ChargingStation.register("CP-1", DETAILS, T0);
+
+  @Test
+  void keepsWhatTheStationSaidAtItsFirstBoot() {
+    assertThat(station.id()).isEqualTo("CP-1");
+    assertThat(station.details()).isEqualTo(DETAILS);
+    assertThat(station.lastBootAt()).isEqualTo(T0);
+    assertThat(station.connectors()).isEmpty();
+  }
+
+  @Test
+  void aNewBootReplacesTheDetailsAndKeepsTheConnectors() {
+    station.report(1, CHARGING, T0);
+    StationDetails updated = new StationDetails("VendorX", "SingleSocketCharger", "SN-1", "1.1.0");
+
+    station.boot(updated, T2);
+
+    assertThat(station.details()).isEqualTo(updated);
+    assertThat(station.lastBootAt()).isEqualTo(T2);
+    assertThat(station.connector(1)).contains(new Connector(1, CHARGING, T0));
+  }
+
+  @Test
+  void restoresTheConnectorsAsTheyWereSavedInIdOrder() {
+    List<Connector> saved = List.of(new Connector(2, FINISHING, T1), new Connector(0, FAULTED, T0));
+
+    ChargingStation restored = ChargingStation.restore("CP-1", DETAILS, T0, saved);
+
+    assertThat(restored.details()).isEqualTo(DETAILS);
+    assertThat(restored.lastBootAt()).isEqualTo(T0);
+    assertThat(restored.connectors()).containsExactly(saved.get(1), saved.get(0));
+  }
 
   @Test
   void takesAnyStatusForAConnectorSeenForTheFirstTime() {
@@ -112,7 +147,12 @@ class ChargingStationTest {
 
   @Test
   void refusesValuesThatCannotComeFromAChargePoint() {
-    assertThatThrownBy(() -> new ChargingStation(" ")).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> ChargingStation.register(" ", DETAILS, T0))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new StationDetails(" ", "Model", null, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new StationDetails("Vendor", "", null, null))
+        .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> station.report(-1, AVAILABLE, T0))
         .isInstanceOf(IllegalArgumentException.class);
   }
