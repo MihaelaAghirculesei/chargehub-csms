@@ -12,25 +12,64 @@ import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A charging station and the last known status of each of its connectors.
+ * A charging station, what it said about itself at its last boot and the last known status of each
+ * of its connectors.
  *
- * <p>Connectors are learned from the reports: OCPP 1.6 announces no connector count at boot. Not
- * thread-safe: a station is loaded, changed and saved within one transaction.
+ * <p>A station becomes known through its first boot: OCPP 1.6 lets a charge point send nothing else
+ * before it is accepted. Connectors are learned from the reports, since a boot announces no
+ * connector count. Not thread-safe: a station is loaded, changed and saved within one transaction.
  */
 public final class ChargingStation {
 
   private final String id;
+  private StationDetails details;
+  private Instant lastBootAt;
   private final Map<Integer, Connector> connectors = new TreeMap<>();
 
-  public ChargingStation(String id) {
+  private ChargingStation(String id, StationDetails details, Instant lastBootAt) {
     if (id.isBlank()) {
       throw new IllegalArgumentException("Charging station id must not be blank");
     }
     this.id = id;
+    this.details = details;
+    this.lastBootAt = lastBootAt;
+  }
+
+  /** A station that boots for the first time. */
+  public static ChargingStation register(String id, StationDetails details, Instant bootedAt) {
+    return new ChargingStation(id, details, bootedAt);
+  }
+
+  /**
+   * A station as it was saved. The connectors are taken as they are: they passed the transition
+   * rules when they were reported.
+   */
+  public static ChargingStation restore(
+      String id, StationDetails details, Instant lastBootAt, List<Connector> connectors) {
+    ChargingStation station = new ChargingStation(id, details, lastBootAt);
+    connectors.forEach(connector -> station.connectors.put(connector.id(), connector));
+    return station;
   }
 
   public String id() {
     return id;
+  }
+
+  public StationDetails details() {
+    return details;
+  }
+
+  public Instant lastBootAt() {
+    return lastBootAt;
+  }
+
+  /**
+   * Takes a new boot. The details may have changed, for example after a firmware update. The
+   * connector statuses stay: the station reports them again after the boot.
+   */
+  public void boot(StationDetails details, Instant bootedAt) {
+    this.details = details;
+    this.lastBootAt = bootedAt;
   }
 
   public Optional<Connector> connector(int connectorId) {
