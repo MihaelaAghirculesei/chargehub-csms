@@ -19,3 +19,4 @@ Why the project looks the way it does. How these records work is described in
 | [0012](0012-container-images-from-a-multi-stage-dockerfile.md) | Build container images with one multi-stage Dockerfile | Accepted |
 | [0013](0013-connector-status-never-refuses-a-report.md) | Model connector status as a state machine that never refuses a report | Accepted |
 | [0014](0014-keep-jpa-entities-apart-from-the-domain.md) | Keep JPA entities apart from the domain model | Accepted |
+| [0015](0015-postgresql-advisory-lock-for-scheduled-jobs.md) | Use a PostgreSQL advisory lock so only one instance runs a scheduled job | Accepted |
