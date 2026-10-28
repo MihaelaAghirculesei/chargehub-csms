@@ -64,6 +64,29 @@ class ChargingStationTest {
   }
 
   @Test
+  void aStationNotSeenSinceTheCutoffGoesOffline() {
+    assertThat(station.markOfflineIfNotSeenSince(T1, T2))
+        .contains(new StationWentOffline("CP-1", T0, T2));
+    assertThat(station.online()).isFalse();
+    assertThat(station.lastSeenAt()).isEqualTo(T0);
+  }
+
+  @Test
+  void aStationSeenSinceTheCutoffStaysOnline() {
+    station.seen(T1);
+
+    assertThat(station.markOfflineIfNotSeenSince(T1, T2)).isEmpty();
+    assertThat(station.online()).isTrue();
+  }
+
+  @Test
+  void anOfflineStationDoesNotGoOfflineTwice() {
+    ChargingStation offline = ChargingStation.restore("CP-1", DETAILS, T0, T0, false, List.of());
+
+    assertThat(offline.markOfflineIfNotSeenSince(T1, T2)).isEmpty();
+  }
+
+  @Test
   void aNewBootReplacesTheDetailsAndKeepsTheConnectors() {
     station.report(1, CHARGING, T0);
     StationDetails updated = new StationDetails("VendorX", "SingleSocketCharger", "SN-1", "1.1.0");

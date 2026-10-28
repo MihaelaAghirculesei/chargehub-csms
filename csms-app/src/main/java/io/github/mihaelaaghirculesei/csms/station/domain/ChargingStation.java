@@ -100,6 +100,21 @@ public final class ChargingStation {
   }
 
   /**
+   * Takes the station as offline when it has not been heard from since the cutoff. The check is
+   * made here and not only in the query that found the station, so that a station seen in between
+   * stays online.
+   *
+   * @return the event to publish when the station was online until now
+   */
+  public Optional<StationWentOffline> markOfflineIfNotSeenSince(Instant cutoff, Instant at) {
+    if (!online || !lastSeenAt.isBefore(cutoff)) {
+      return Optional.empty();
+    }
+    online = false;
+    return Optional.of(new StationWentOffline(id, lastSeenAt, at));
+  }
+
+  /**
    * Takes a new boot. The details may have changed, for example after a firmware update. The
    * connector statuses stay: the station reports them again after the boot.
    */
