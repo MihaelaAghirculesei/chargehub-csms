@@ -228,6 +228,11 @@ class StationHandlersTest {
     }
 
     @Override
+    public List<ChargingStation> findOnlineNotSeenSince(Instant cutoff, int limit) {
+      throw new UnsupportedOperationException("The handlers never look for silent stations");
+    }
+
+    @Override
     public void save(ChargingStation station) {
       byId.put(station.id(), station);
     }

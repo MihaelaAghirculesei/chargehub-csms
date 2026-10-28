@@ -64,6 +64,25 @@ class JpaChargingStationRepositoryTest {
   }
 
   @Test
+  void findsTheOnlineStationsNotSeenSinceACutoffTheLongestSilentFirst() {
+    Instant cutoff = Instant.parse("2000-01-01T00:00:00Z");
+    inTransaction(
+        () -> {
+          stations.save(seenAt("CP-QUIET-2", cutoff.minusSeconds(2), true));
+          stations.save(seenAt("CP-QUIET-1", cutoff.minusSeconds(3), true));
+          stations.save(seenAt("CP-QUIET-3", cutoff.minusSeconds(1), true));
+          stations.save(seenAt("CP-QUIET-OFFLINE", cutoff.minusSeconds(3), false));
+          stations.save(seenAt("CP-QUIET-AT-CUTOFF", cutoff, true));
+        });
+
+    List<ChargingStation> found =
+        new TransactionTemplate(transactionManager)
+            .execute(status -> stations.findOnlineNotSeenSince(cutoff, 2));
+
+    assertThat(found).extracting(ChargingStation::id).containsExactly("CP-QUIET-1", "CP-QUIET-2");
+  }
+
+  @Test
   void savesTheChangesOfAStoredStation() {
     ChargingStation station = ChargingStation.register("CP-UPDATE", DETAILS, T0);
     station.report(1, AVAILABLE, T0);
@@ -108,6 +127,10 @@ class JpaChargingStationRepositoryTest {
 
     ChargingStation loaded = load("CP-RACE");
     assertThat(loaded.connector(1)).contains(new Connector(1, AVAILABLE, T1));
+  }
+
+  private static ChargingStation seenAt(String id, Instant lastSeenAt, boolean online) {
+    return ChargingStation.restore(id, DETAILS, lastSeenAt, lastSeenAt, online, List.of());
   }
 
   private ChargingStation load(String id) {

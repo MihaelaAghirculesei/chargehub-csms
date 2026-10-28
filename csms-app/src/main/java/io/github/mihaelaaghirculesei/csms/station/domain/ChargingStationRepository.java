@@ -1,5 +1,7 @@
 package io.github.mihaelaaghirculesei.csms.station.domain;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -9,6 +11,9 @@ import java.util.Optional;
 public interface ChargingStationRepository {
 
   Optional<ChargingStation> findById(String id);
+
+  /** At most {@code limit} online stations not seen since the cutoff, the longest silent first. */
+  List<ChargingStation> findOnlineNotSeenSince(Instant cutoff, int limit);
 
   void save(ChargingStation station);
 }

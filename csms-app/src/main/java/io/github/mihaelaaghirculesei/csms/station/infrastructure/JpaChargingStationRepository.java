@@ -2,7 +2,10 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 
 /** Keeps charging stations in PostgreSQL, mapping them to and from their entity. */
@@ -18,6 +21,15 @@ class JpaChargingStationRepository implements ChargingStationRepository {
   @Override
   public Optional<ChargingStation> findById(String id) {
     return entities.findById(id).map(ChargingStationEntity::toDomain);
+  }
+
+  @Override
+  public List<ChargingStation> findOnlineNotSeenSince(Instant cutoff, int limit) {
+    return entities
+        .findByOnlineTrueAndLastSeenAtBeforeOrderByLastSeenAt(cutoff, Limit.of(limit))
+        .stream()
+        .map(ChargingStationEntity::toDomain)
+        .toList();
   }
 
   @Override
