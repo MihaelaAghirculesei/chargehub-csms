@@ -41,7 +41,10 @@ class StationHandlersTest {
   private final List<Object> published = new ArrayList<>();
   private final BootNotificationHandler boots =
       new BootNotificationHandler(
-          CLOCK, stations, published::add, new StationProperties(Duration.ofMinutes(2)));
+          CLOCK,
+          stations,
+          published::add,
+          new StationProperties(Duration.ofMinutes(2), Duration.ofSeconds(30), 3));
   private final HeartbeatHandler heartbeats = new HeartbeatHandler(CLOCK, stations, published::add);
   private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
   private final StatusNotificationHandler statuses =

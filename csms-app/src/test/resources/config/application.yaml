@@ -1,0 +1,6 @@
+# Spring Boot merges this file over the main application.yaml.
+chargehub:
+  station:
+    # Tests run the offline check themselves. A scheduled run would change stations in the shared
+    # database while another test is using them.
+    offline-check-interval: 1d
