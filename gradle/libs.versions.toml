@@ -6,7 +6,7 @@ errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
 jacoco = "0.8.15"
-springdoc = "3.1.1"
+springdoc = "3.2.0"
 # Must equal the Jackson 3 version managed by the Spring Boot BOM; verifyJacksonAlignment checks it.
 # See docs/adr/0006.
 jackson = "3.1.5"
