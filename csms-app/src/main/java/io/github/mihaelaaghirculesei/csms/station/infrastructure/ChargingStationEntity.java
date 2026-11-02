@@ -2,6 +2,8 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorError;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorErrorCode;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import jakarta.persistence.CollectionTable;
@@ -78,9 +80,7 @@ class ChargingStationEntity {
     lastSeenAt = station.lastSeenAt();
     online = station.online();
     Map<Integer, ConnectorColumns> reported = new HashMap<>();
-    station
-        .connectors()
-        .forEach(c -> reported.put(c.id(), new ConnectorColumns(c.status(), c.reportedAt())));
+    station.connectors().forEach(c -> reported.put(c.id(), ConnectorColumns.of(c)));
     // Changed in place so that Hibernate writes only the rows that differ.
     connectors.keySet().retainAll(reported.keySet());
     connectors.putAll(reported);
@@ -88,9 +88,7 @@ class ChargingStationEntity {
 
   ChargingStation toDomain() {
     List<Connector> restored =
-        connectors.entrySet().stream()
-            .map(e -> new Connector(e.getKey(), e.getValue().status(), e.getValue().reportedAt()))
-            .toList();
+        connectors.entrySet().stream().map(e -> e.getValue().toDomain(e.getKey())).toList();
     return ChargingStation.restore(
         id,
         new StationDetails(vendor, model, serialNumber, firmwareVersion),
@@ -102,5 +100,25 @@ class ChargingStationEntity {
 
   @Embeddable
   record ConnectorColumns(
-      @Enumerated(EnumType.STRING) ConnectorStatus status, Instant reportedAt) {}
+      @Enumerated(EnumType.STRING) ConnectorStatus status,
+      @Enumerated(EnumType.STRING) ConnectorErrorCode errorCode,
+      @Nullable String info,
+      @Nullable String vendorErrorCode,
+      Instant reportedAt) {
+
+    static ConnectorColumns of(Connector connector) {
+      ConnectorError error = connector.error();
+      return new ConnectorColumns(
+          connector.status(),
+          error.code(),
+          error.info(),
+          error.vendorErrorCode(),
+          connector.reportedAt());
+    }
+
+    Connector toDomain(int id) {
+      return new Connector(
+          id, status, new ConnectorError(errorCode, info, vendorErrorCode), reportedAt);
+    }
+  }
 }
