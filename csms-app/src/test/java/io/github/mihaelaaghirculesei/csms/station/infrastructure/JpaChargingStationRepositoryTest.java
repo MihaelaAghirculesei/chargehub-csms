@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
 import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.AVAILABLE;
 import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.CHARGING;
+import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.FAULTED;
 import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.PREPARING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -10,6 +11,8 @@ import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorError;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorErrorCode;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
 import java.time.Instant;
 import java.util.List;
@@ -38,8 +41,8 @@ class JpaChargingStationRepositoryTest {
   @Test
   void savesAndLoadsAStationWithItsConnectors() {
     ChargingStation station = ChargingStation.register("CP-SAVE", DETAILS, T0);
-    station.report(Connector.WHOLE_STATION, AVAILABLE, T0);
-    station.report(1, CHARGING, T1);
+    station.report(Connector.WHOLE_STATION, AVAILABLE, ConnectorError.NONE, T0);
+    station.report(1, CHARGING, ConnectorError.NONE, T1);
 
     inTransaction(() -> stations.save(station));
 
@@ -48,7 +51,23 @@ class JpaChargingStationRepositoryTest {
     assertThat(loaded.lastBootAt()).isEqualTo(T0);
     assertThat(loaded.connectors())
         .containsExactly(
-            new Connector(Connector.WHOLE_STATION, AVAILABLE, T0), new Connector(1, CHARGING, T1));
+            new Connector(Connector.WHOLE_STATION, AVAILABLE, ConnectorError.NONE, T0),
+            new Connector(1, CHARGING, ConnectorError.NONE, T1));
+  }
+
+  @Test
+  void savesAndLoadsTheErrorOfAConnector() {
+    ConnectorError error =
+        new ConnectorError(ConnectorErrorCode.OVER_CURRENT_FAILURE, "Tripped twice", "E-7");
+    ChargingStation station = ChargingStation.register("CP-ERROR", DETAILS, T0);
+    station.report(1, FAULTED, error, T0);
+    station.report(2, FAULTED, new ConnectorError(ConnectorErrorCode.OTHER_ERROR, null, null), T0);
+
+    inTransaction(() -> stations.save(station));
+
+    assertThat(load("CP-ERROR").connector(1)).contains(new Connector(1, FAULTED, error, T0));
+    assertThat(load("CP-ERROR").connector(2).orElseThrow().error())
+        .isEqualTo(new ConnectorError(ConnectorErrorCode.OTHER_ERROR, null, null));
   }
 
   @Test
@@ -85,7 +104,7 @@ class JpaChargingStationRepositoryTest {
   @Test
   void savesTheChangesOfAStoredStation() {
     ChargingStation station = ChargingStation.register("CP-UPDATE", DETAILS, T0);
-    station.report(1, AVAILABLE, T0);
+    station.report(1, AVAILABLE, ConnectorError.NONE, T0);
     inTransaction(() -> stations.save(station));
     StationDetails updated = new StationDetails("VendorX", "SingleSocketCharger", "SN-1", "1.1.0");
 
@@ -93,8 +112,8 @@ class JpaChargingStationRepositoryTest {
         () -> {
           ChargingStation loaded = stations.findById("CP-UPDATE").orElseThrow();
           loaded.boot(updated, T1);
-          loaded.report(1, PREPARING, T1);
-          loaded.report(2, AVAILABLE, T1);
+          loaded.report(1, PREPARING, ConnectorError.NONE, T1);
+          loaded.report(2, AVAILABLE, ConnectorError.NONE, T1);
           stations.save(loaded);
         });
 
@@ -102,7 +121,9 @@ class JpaChargingStationRepositoryTest {
     assertThat(loaded.details()).isEqualTo(updated);
     assertThat(loaded.lastBootAt()).isEqualTo(T1);
     assertThat(loaded.connectors())
-        .containsExactly(new Connector(1, PREPARING, T1), new Connector(2, AVAILABLE, T1));
+        .containsExactly(
+            new Connector(1, PREPARING, ConnectorError.NONE, T1),
+            new Connector(2, AVAILABLE, ConnectorError.NONE, T1));
   }
 
   @Test
@@ -117,16 +138,16 @@ class JpaChargingStationRepositoryTest {
                       inNewTransaction(
                           () -> {
                             ChargingStation second = stations.findById("CP-RACE").orElseThrow();
-                            second.report(1, AVAILABLE, T1);
+                            second.report(1, AVAILABLE, ConnectorError.NONE, T1);
                             stations.save(second);
                           });
-                      first.report(1, CHARGING, T1);
+                      first.report(1, CHARGING, ConnectorError.NONE, T1);
                       stations.save(first);
                     }))
         .isInstanceOf(ObjectOptimisticLockingFailureException.class);
 
     ChargingStation loaded = load("CP-RACE");
-    assertThat(loaded.connector(1)).contains(new Connector(1, AVAILABLE, T1));
+    assertThat(loaded.connector(1)).contains(new Connector(1, AVAILABLE, ConnectorError.NONE, T1));
   }
 
   private static ChargingStation seenAt(String id, Instant lastSeenAt, boolean online) {

@@ -3,12 +3,15 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 import io.github.mihaelaaghirculesei.csms.ocpp.ActionHandler;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorError;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorErrorCode;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Applied;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Rejected;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Stale;
 import io.github.mihaelaaghirculesei.csms.station.domain.ReportOutcome.Unchanged;
+import io.github.mihaelaaghirculesei.ocpp.message.ChargePointErrorCode;
 import io.github.mihaelaaghirculesei.ocpp.message.ChargePointStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.StatusNotificationRequest;
@@ -77,7 +80,8 @@ class StatusNotificationHandler implements ActionHandler {
       ChargingStation station = found.get();
       station.seen(clock.instant()).ifPresent(events::publishEvent);
       ConnectorStatus reported = toDomain(report.status());
-      ReportOutcome outcome = station.report(report.connectorId(), reported, reportedAt(report));
+      ReportOutcome outcome =
+          station.report(report.connectorId(), reported, error(report), reportedAt(report));
       stations.save(station);
       count(take(chargePointId, reported, outcome));
     }
@@ -129,6 +133,32 @@ class StatusNotificationHandler implements ActionHandler {
   private Instant reportedAt(StatusNotificationRequest report) {
     Instant timestamp = report.timestamp();
     return timestamp != null ? timestamp : clock.instant();
+  }
+
+  private static ConnectorError error(StatusNotificationRequest report) {
+    return new ConnectorError(
+        toDomain(report.errorCode()), report.info(), report.vendorErrorCode());
+  }
+
+  private static ConnectorErrorCode toDomain(ChargePointErrorCode code) {
+    return switch (code) {
+      case CONNECTOR_LOCK_FAILURE -> ConnectorErrorCode.CONNECTOR_LOCK_FAILURE;
+      case EV_COMMUNICATION_ERROR -> ConnectorErrorCode.EV_COMMUNICATION_ERROR;
+      case GROUND_FAILURE -> ConnectorErrorCode.GROUND_FAILURE;
+      case HIGH_TEMPERATURE -> ConnectorErrorCode.HIGH_TEMPERATURE;
+      case INTERNAL_ERROR -> ConnectorErrorCode.INTERNAL_ERROR;
+      case LOCAL_LIST_CONFLICT -> ConnectorErrorCode.LOCAL_LIST_CONFLICT;
+      case NO_ERROR -> ConnectorErrorCode.NO_ERROR;
+      case OTHER_ERROR -> ConnectorErrorCode.OTHER_ERROR;
+      case OVER_CURRENT_FAILURE -> ConnectorErrorCode.OVER_CURRENT_FAILURE;
+      case POWER_METER_FAILURE -> ConnectorErrorCode.POWER_METER_FAILURE;
+      case POWER_SWITCH_FAILURE -> ConnectorErrorCode.POWER_SWITCH_FAILURE;
+      case READER_FAILURE -> ConnectorErrorCode.READER_FAILURE;
+      case RESET_FAILURE -> ConnectorErrorCode.RESET_FAILURE;
+      case UNDER_VOLTAGE -> ConnectorErrorCode.UNDER_VOLTAGE;
+      case OVER_VOLTAGE -> ConnectorErrorCode.OVER_VOLTAGE;
+      case WEAK_SIGNAL -> ConnectorErrorCode.WEAK_SIGNAL;
+    };
   }
 
   private static ConnectorStatus toDomain(ChargePointStatus status) {
