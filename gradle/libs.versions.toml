@@ -1,5 +1,5 @@
 [versions]
-spring-boot = "4.1.1"
+spring-boot = "4.1.2"
 spotless = "8.10.4"
 google-java-format = "1.36.1"
 errorprone = "2.50.0"
@@ -18,7 +18,7 @@ jqwik = "1.10.2"
 # Same version as the Spring Boot BOM.
 assertj = "3.27.7"
 # Spring Modulith is not in the Spring Boot BOM; the 2.1 line matches Spring Boot 4.1.
-spring-modulith = "2.1.1"
+spring-modulith = "2.1.2"
 # The version Spring Modulith 2.1.1 is built with; a newer one would replace it under Modulith too.
 archunit = "1.4.2"
 # Same version as the Spring Boot BOM; ocpp-protocol has no BOM to take it from.
