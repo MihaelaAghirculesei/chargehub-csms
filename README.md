@@ -67,7 +67,7 @@ deploy/check-simulated-charge-points.sh    # all 100 accepted, none reconnecting
 
 CI runs the same check on every change.
 
-The same charge points can misbehave on purpose: with the `chaos` profile their connections drop at random, some calls arrive twice and connectors go to `Faulted` for a while (`charge-point-simulator/src/main/resources/application-chaos.yaml`).
+The same charge points can misbehave on purpose: with the `chaos` profile their connections drop at random, some calls arrive twice, connectors go to `Faulted` for a while and clocks run off by a few minutes (`charge-point-simulator/src/main/resources/application-chaos.yaml`).
 
 ```bash
 docker compose -f deploy/docker-compose.yml --profile chaos up -d --build

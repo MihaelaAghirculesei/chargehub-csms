@@ -2,6 +2,8 @@ package io.github.mihaelaaghirculesei.simulator;
 
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ChargePoint;
 import java.net.http.HttpClient;
+import java.time.Clock;
+import java.util.random.RandomGenerator;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,7 @@ class SimulatorConfiguration {
 
   @Bean
   ChargePointRunner chargePointRunner(HttpClient httpClient, SimulatorProperties properties) {
+    RandomGenerator random = RandomGenerator.getDefault();
     return new ChargePointRunner(
         properties.chargePoints().ids().stream()
             .map(
@@ -29,7 +32,8 @@ class SimulatorConfiguration {
                         properties.callTimeout(),
                         properties.reconnect().policy(),
                         properties.faults().policy(),
-                        properties.chargePoints().connectors()))
+                        properties.chargePoints().connectors(),
+                        Clock.offset(Clock.systemUTC(), properties.faults().clockSkew(random))))
             .toList(),
         properties.chargePoints().startSpread());
   }

@@ -10,7 +10,10 @@ import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
 import io.github.mihaelaaghirculesei.simulator.FakeCentralSystem;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -223,6 +226,27 @@ class ChargePointTest {
 
     assertThat(nextCall().action()).isEqualTo("BootNotification");
     assertThat(nextCall().action()).isEqualTo("StatusNotification");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void timestampsItsReportsWithItsOwnClock() throws Exception {
+    Instant wrongTime = Instant.parse("2020-01-01T00:00:00Z");
+    centralSystem.answerBootsWith(300);
+    run(
+        new ChargePoint(
+            CLIENT,
+            centralSystem.url(),
+            "CP-TEST",
+            WAIT,
+            QUICK_RECONNECT,
+            FaultPolicy.NONE,
+            1,
+            Clock.fixed(wrongTime, ZoneOffset.UTC)));
+
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    assertThat(Instant.parse(nextCall().payload().path("timestamp").stringValue()))
+        .isEqualTo(wrongTime);
     assertThat(failure.get()).isNull();
   }
 
