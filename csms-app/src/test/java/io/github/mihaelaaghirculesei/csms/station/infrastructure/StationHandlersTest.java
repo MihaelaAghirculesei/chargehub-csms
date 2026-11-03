@@ -8,6 +8,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStation;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorError;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorErrorCode;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatusChanged;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationCameOnline;
 import io.github.mihaelaaghirculesei.csms.station.domain.StationDetails;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -100,10 +104,42 @@ class StationHandlersTest {
     assertThat(response).isEmpty();
     assertThat(validator.validate("StatusNotification", RESPONSE, response)).isEmpty();
     assertThat(stations.findById("CP-1").orElseThrow().connector(1))
-        .contains(new Connector(1, AVAILABLE, reportedAt));
+        .contains(new Connector(1, AVAILABLE, ConnectorError.NONE, reportedAt));
     assertThat(published)
-        .containsExactly(new ConnectorStatusChanged("CP-1", 1, null, AVAILABLE, reportedAt));
+        .containsExactly(
+            new ConnectorStatusChanged(
+                "CP-1", 1, null, AVAILABLE, ConnectorErrorCode.NO_ERROR, reportedAt));
     assertThat(reports("applied")).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "ConnectorLockFailure, CONNECTOR_LOCK_FAILURE",
+    "EVCommunicationError, EV_COMMUNICATION_ERROR",
+    "GroundFailure, GROUND_FAILURE",
+    "HighTemperature, HIGH_TEMPERATURE",
+    "InternalError, INTERNAL_ERROR",
+    "LocalListConflict, LOCAL_LIST_CONFLICT",
+    "NoError, NO_ERROR",
+    "OtherError, OTHER_ERROR",
+    "OverCurrentFailure, OVER_CURRENT_FAILURE",
+    "PowerMeterFailure, POWER_METER_FAILURE",
+    "PowerSwitchFailure, POWER_SWITCH_FAILURE",
+    "ReaderFailure, READER_FAILURE",
+    "ResetFailure, RESET_FAILURE",
+    "UnderVoltage, UNDER_VOLTAGE",
+    "OverVoltage, OVER_VOLTAGE",
+    "WeakSignal, WEAK_SIGNAL"
+  })
+  void mapsEveryOcppErrorCode(String reported, ConnectorErrorCode expected) {
+    boots.handle("CP-1", bootNotification());
+
+    statuses.handle(
+        "CP-1",
+        json("{\"connectorId\":1,\"errorCode\":\"" + reported + "\",\"status\":\"Faulted\"}"));
+
+    assertThat(stations.findById("CP-1").orElseThrow().connector(1).orElseThrow().error())
+        .isEqualTo(new ConnectorError(expected, null, null));
   }
 
   @Test
@@ -114,7 +150,7 @@ class StationHandlersTest {
         "CP-1", json("{\"connectorId\":1,\"errorCode\":\"NoError\",\"status\":\"Preparing\"}"));
 
     assertThat(stations.findById("CP-1").orElseThrow().connector(1))
-        .contains(new Connector(1, PREPARING, CLOCK.instant()));
+        .contains(new Connector(1, PREPARING, ConnectorError.NONE, CLOCK.instant()));
   }
 
   @Test

@@ -2,12 +2,15 @@ package io.github.mihaelaaghirculesei.csms.station.infrastructure;
 
 import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.AVAILABLE;
 import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.CHARGING;
+import static io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatus.FAULTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.ocpp.infrastructure.TestChargePoint;
 import io.github.mihaelaaghirculesei.csms.station.domain.ChargingStationRepository;
 import io.github.mihaelaaghirculesei.csms.station.domain.Connector;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorError;
+import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorErrorCode;
 import io.github.mihaelaaghirculesei.csms.station.domain.ConnectorStatusChanged;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,9 +46,11 @@ class StatusNotificationTest {
 
       // Read without waiting: the report is stored before the answer is sent.
       assertThat(stations.findById("CP-STATUS").orElseThrow().connector(1))
-          .contains(new Connector(1, AVAILABLE, T0));
+          .contains(new Connector(1, AVAILABLE, ConnectorError.NONE, T0));
       assertThat(changes.of("CP-STATUS"))
-          .containsExactly(new ConnectorStatusChanged("CP-STATUS", 1, null, AVAILABLE, T0));
+          .containsExactly(
+              new ConnectorStatusChanged(
+                  "CP-STATUS", 1, null, AVAILABLE, ConnectorErrorCode.NO_ERROR, T0));
     }
   }
 
@@ -59,8 +64,30 @@ class StatusNotificationTest {
       assertThat(chargePoint.nextFrame(WAIT)).isEqualTo("[3,\"3\",{}]");
 
       assertThat(stations.findById("CP-LATE").orElseThrow().connector(1))
-          .contains(new Connector(1, CHARGING, T1));
+          .contains(new Connector(1, CHARGING, ConnectorError.NONE, T1));
       assertThat(changes.of("CP-LATE")).hasSize(1);
+    }
+  }
+
+  @Test
+  void storesTheErrorReportedWithAStatusAndPublishesItsCode() throws Exception {
+    try (TestChargePoint chargePoint = booted("CP-FAULT")) {
+      chargePoint.send(
+          "[2,\"2\",\"StatusNotification\",{\"connectorId\":1,\"errorCode\":\"GroundFailure\","
+              + "\"info\":\"Leak on phase 2\",\"vendorErrorCode\":\"E-42\","
+              + "\"status\":\"Faulted\",\"timestamp\":\""
+              + T0
+              + "\"}]");
+      assertThat(chargePoint.nextFrame(WAIT)).isEqualTo("[3,\"2\",{}]");
+
+      ConnectorError error =
+          new ConnectorError(ConnectorErrorCode.GROUND_FAILURE, "Leak on phase 2", "E-42");
+      assertThat(stations.findById("CP-FAULT").orElseThrow().connector(1))
+          .contains(new Connector(1, FAULTED, error, T0));
+      assertThat(changes.of("CP-FAULT"))
+          .containsExactly(
+              new ConnectorStatusChanged(
+                  "CP-FAULT", 1, null, FAULTED, ConnectorErrorCode.GROUND_FAILURE, T0));
     }
   }
 
