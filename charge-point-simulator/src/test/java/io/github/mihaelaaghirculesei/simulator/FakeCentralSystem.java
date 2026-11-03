@@ -42,6 +42,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /** A central system for tests, on a random port: it records what the charge point sends. */
@@ -119,8 +120,8 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
   }
 
   /**
-   * Answers BootNotification with the given statuses in turn, then with Accepted, and Heartbeat
-   * with a fixed time.
+   * Answers BootNotification with the given statuses in turn, then with Accepted, Heartbeat with a
+   * fixed time, and StatusNotification with its empty answer.
    */
   public void answerBootsWith(int interval, RegistrationStatus... statuses) {
     Queue<RegistrationStatus> pending = new ConcurrentLinkedQueue<>(List.of(statuses));
@@ -135,6 +136,7 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
                             NOW,
                             interval));
                 case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
+                case "StatusNotification" -> JsonNodeFactory.instance.objectNode();
                 default -> throw new IllegalStateException("Unexpected action " + call.action());
               };
           return CODEC.encode(new CallResult(call.messageId(), payload));

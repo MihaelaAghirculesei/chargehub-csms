@@ -62,7 +62,7 @@ class SimulatedChargePointTest {
   @Test
   void keepsServingAChargePointThatDropsItsConnectionAndRepeatsCalls() throws Exception {
     // Mean longer than the heartbeat interval, so most connections live long enough to send one.
-    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(2), 1);
+    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(2), 1, 0);
     try (var _ = start("CP-CHAOS", faults)) {
       // Every call arrives twice, and each connection boots: six boots are three connections.
       verify(boots, timeout(WAIT.toMillis()).atLeast(6))
@@ -84,7 +84,8 @@ class SimulatedChargePointTest {
             chargePointId,
             CALL_TIMEOUT,
             RECONNECT,
-            faults);
+            faults,
+            0);
     Thread thread =
         Thread.ofVirtual()
             .name(chargePointId)

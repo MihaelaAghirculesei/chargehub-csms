@@ -4,19 +4,23 @@ import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.HeartbeatResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
+import io.github.mihaelaaghirculesei.ocpp.message.StatusNotificationRequest;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
- * A simulated charge point: it boots, then sends heartbeats. When the session fails it connects
- * again, like a real charge point. Not thread-safe: one thread runs it.
+ * A simulated charge point: it boots, reports its connectors, then sends heartbeats. When the
+ * session fails it connects again, like a real charge point. Not thread-safe: one thread runs it.
  */
 public final class ChargePoint {
 
@@ -34,6 +38,7 @@ public final class ChargePoint {
   private final Duration callTimeout;
   private final ReconnectPolicy reconnect;
   private final FaultPolicy faults;
+  private final Connectors connectors;
   private final RandomGenerator random = RandomGenerator.getDefault();
   // Read by tests from another thread.
   private final AtomicInteger failedAttempts = new AtomicInteger();
@@ -44,13 +49,15 @@ public final class ChargePoint {
       String id,
       Duration callTimeout,
       ReconnectPolicy reconnect,
-      FaultPolicy faults) {
+      FaultPolicy faults,
+      int connectors) {
     this.client = client;
     this.centralSystem = centralSystem;
     this.id = id;
     this.callTimeout = callTimeout;
     this.reconnect = reconnect;
     this.faults = faults;
+    this.connectors = new Connectors(connectors);
   }
 
   public String id() {
@@ -81,6 +88,7 @@ public final class ChargePoint {
       // A charge point that was accepted again starts its back-off from the beginning.
       failedAttempts.set(0);
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
+      report(connection, connectors.reports(Instant.now()));
       while (!Thread.currentThread().isInterrupted()) {
         waitOrFail(connection, heartbeatInterval);
         call(
@@ -88,6 +96,7 @@ public final class ChargePoint {
             Action.HEARTBEAT,
             JsonNodeFactory.instance.objectNode(),
             HeartbeatResponse.class);
+        report(connection, connectors.advance(faults, random, Instant.now()));
       }
     }
   }
@@ -108,6 +117,14 @@ public final class ChargePoint {
       }
       log.info("Charge point {} is {}, booting again in {}", id, response.status(), interval);
       waitOrFail(connection, interval);
+    }
+  }
+
+  private void report(CsmsConnection connection, List<StatusNotificationRequest> reports)
+      throws InterruptedException {
+    for (StatusNotificationRequest report : reports) {
+      // StatusNotification.conf has no fields, so there is nothing to read from the answer.
+      call(connection, Action.STATUS_NOTIFICATION, report, ObjectNode.class);
     }
   }
 

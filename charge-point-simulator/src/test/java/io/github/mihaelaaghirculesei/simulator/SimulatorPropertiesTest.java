@@ -11,7 +11,7 @@ class SimulatorPropertiesTest {
 
   @Test
   void numbersTheChargePointsAfterThePrefix() {
-    ChargePoints chargePoints = new ChargePoints(3, "SIM-", Duration.ZERO);
+    ChargePoints chargePoints = new ChargePoints(3, "SIM-", 2, Duration.ZERO);
 
     assertThat(chargePoints.ids()).containsExactly("SIM-0001", "SIM-0002", "SIM-0003");
   }
@@ -20,7 +20,15 @@ class SimulatorPropertiesTest {
   void refusesASimulatorWithoutChargePoints() {
     Duration none = Duration.ZERO;
 
-    assertThatThrownBy(() -> new ChargePoints(0, "SIM-", none))
+    assertThatThrownBy(() -> new ChargePoints(0, "SIM-", 2, none))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void refusesAChargePointWithoutConnectors() {
+    Duration none = Duration.ZERO;
+
+    assertThatThrownBy(() -> new ChargePoints(1, "SIM-", 0, none))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -28,7 +36,7 @@ class SimulatorPropertiesTest {
   void refusesANegativeStartSpread() {
     Duration negative = Duration.ofSeconds(-1);
 
-    assertThatThrownBy(() -> new ChargePoints(1, "SIM-", negative))
+    assertThatThrownBy(() -> new ChargePoints(1, "SIM-", 2, negative))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }
