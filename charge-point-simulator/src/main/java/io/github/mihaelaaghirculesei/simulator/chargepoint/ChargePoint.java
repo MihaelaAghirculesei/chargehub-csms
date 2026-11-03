@@ -9,8 +9,8 @@ import io.github.mihaelaaghirculesei.ocpp.message.StatusNotificationRequest;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +43,7 @@ public final class ChargePoint {
   // Changed from another thread by whoever wants the faults to stop.
   private volatile FaultPolicy faults;
   private final Connectors connectors;
+  private final Clock clock;
   private final RandomGenerator random = RandomGenerator.getDefault();
   // Read by tests from another thread.
   private final AtomicInteger failedAttempts = new AtomicInteger();
@@ -56,6 +57,21 @@ public final class ChargePoint {
       ReconnectPolicy reconnect,
       FaultPolicy faults,
       int connectors) {
+    this(client, centralSystem, id, callTimeout, reconnect, faults, connectors, Clock.systemUTC());
+  }
+
+  /**
+   * @param clock what the charge point believes the time is, for every timestamp it sends
+   */
+  public ChargePoint(
+      HttpClient client,
+      URI centralSystem,
+      String id,
+      Duration callTimeout,
+      ReconnectPolicy reconnect,
+      FaultPolicy faults,
+      int connectors,
+      Clock clock) {
     this.client = client;
     this.centralSystem = centralSystem;
     this.id = id;
@@ -63,6 +79,7 @@ public final class ChargePoint {
     this.reconnect = reconnect;
     this.faults = faults;
     this.connectors = new Connectors(connectors);
+    this.clock = clock;
   }
 
   public String id() {
@@ -103,7 +120,7 @@ public final class ChargePoint {
       // A charge point that was accepted again starts its back-off from the beginning.
       failedAttempts.set(0);
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
-      report(connection, connectors.reports(Instant.now()));
+      report(connection, connectors.reports(clock.instant()));
       while (!Thread.currentThread().isInterrupted()) {
         waitOrFail(connection, heartbeatInterval);
         call(
@@ -111,7 +128,7 @@ public final class ChargePoint {
             Action.HEARTBEAT,
             JsonNodeFactory.instance.objectNode(),
             HeartbeatResponse.class);
-        report(connection, connectors.advance(faults, random, Instant.now()));
+        report(connection, connectors.advance(faults, random, clock.instant()));
       }
     }
   }

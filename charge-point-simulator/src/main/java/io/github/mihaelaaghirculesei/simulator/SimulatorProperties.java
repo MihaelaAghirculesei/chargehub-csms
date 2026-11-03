@@ -5,6 +5,7 @@ import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.random.RandomGenerator;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -72,15 +73,33 @@ record SimulatorProperties(
    * @param meanTimeBetweenDrops see {@link FaultPolicy}; unset, connections never drop
    * @param duplicateCallProbability see {@link FaultPolicy}
    * @param connectorFaultProbability see {@link FaultPolicy}
+   * @param clockSkewMinimum the lowest offset of a charge point's clock from the real time
+   * @param clockSkewMaximum the highest offset; equal to the minimum, every clock is off by exactly
+   *     that much
    */
   record Faults(
       @Nullable Duration meanTimeBetweenDrops,
       @DefaultValue("0") double duplicateCallProbability,
-      @DefaultValue("0") double connectorFaultProbability) {
+      @DefaultValue("0") double connectorFaultProbability,
+      @DefaultValue("0s") Duration clockSkewMinimum,
+      @DefaultValue("0s") Duration clockSkewMaximum) {
+
+    Faults {
+      if (clockSkewMinimum.compareTo(clockSkewMaximum) > 0) {
+        throw new IllegalArgumentException("clockSkewMinimum must not exceed clockSkewMaximum");
+      }
+    }
 
     FaultPolicy policy() {
       return new FaultPolicy(
           meanTimeBetweenDrops, duplicateCallProbability, connectorFaultProbability);
+    }
+
+    /** The offset for one charge point's clock, which it keeps for as long as it runs. */
+    Duration clockSkew(RandomGenerator random) {
+      long minimum = clockSkewMinimum.toMillis();
+      long range = clockSkewMaximum.toMillis() - minimum;
+      return Duration.ofMillis(minimum + random.nextLong(range + 1));
     }
   }
 }

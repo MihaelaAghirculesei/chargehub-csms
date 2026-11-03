@@ -1,9 +1,12 @@
 # Charge points that misbehave on purpose, to test the central system. With 100 of them a
 # connection drops every six seconds on average, one call in ten arrives twice, and at each
-# heartbeat one Available connector in twenty goes to Faulted until the next heartbeat.
+# heartbeat one Available connector in twenty goes to Faulted until the next heartbeat. Each clock
+# is off by up to five minutes either way.
 chargehub:
   simulator:
     faults:
       mean-time-between-drops: 10m
       duplicate-call-probability: 0.1
       connector-fault-probability: 0.05
+      clock-skew-minimum: -5m
+      clock-skew-maximum: 5m
