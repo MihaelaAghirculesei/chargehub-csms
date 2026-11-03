@@ -13,8 +13,11 @@ import org.testcontainers.utility.DockerImageName;
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
 
+  // Every cached context keeps its own connection pool open on this one server, so the default
+  // limit of 100 connections runs out as test contexts are added.
   private static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer(byDigest(DockerCompose.image("postgres")));
+      new PostgreSQLContainer(byDigest(DockerCompose.image("postgres")))
+          .withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=500");
 
   // No destroy method: closing one cached context must not stop the container for the others.
   // Testcontainers removes it when the JVM exits.
