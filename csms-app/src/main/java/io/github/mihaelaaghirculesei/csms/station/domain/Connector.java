@@ -6,9 +6,10 @@ import java.time.Instant;
  * The last status a charge point reported for one of its connectors.
  *
  * @param id 0 for the whole station, from 1 for each connector
+ * @param error what the charge point reported as wrong, {@link ConnectorError#NONE} when nothing
  * @param reportedAt when the charge point says the status was reached, not when the report arrived
  */
-public record Connector(int id, ConnectorStatus status, Instant reportedAt) {
+public record Connector(int id, ConnectorStatus status, ConnectorError error, Instant reportedAt) {
 
   public static final int WHOLE_STATION = 0;
 
