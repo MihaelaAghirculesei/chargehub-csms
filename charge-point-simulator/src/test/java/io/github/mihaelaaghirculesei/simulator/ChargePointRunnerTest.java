@@ -80,7 +80,8 @@ class ChargePointRunnerTest {
                         "CP-RUN-" + n,
                         WAIT,
                         new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0),
-                        FaultPolicy.NONE))
+                        FaultPolicy.NONE,
+                        0))
             .toList();
     runner = new ChargePointRunner(chargePoints, Duration.ofMillis(200));
     return runner;

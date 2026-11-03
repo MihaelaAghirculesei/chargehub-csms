@@ -104,7 +104,8 @@ class ChargePointTest {
             "CP-TEST",
             WAIT,
             new ReconnectPolicy(Duration.ofMillis(10), Duration.ZERO, 3),
-            FaultPolicy.NONE);
+            FaultPolicy.NONE,
+            0);
     run(chargePoint);
     await().atMost(WAIT).until(() -> chargePoint.failedAttempts() >= 3);
 
@@ -120,7 +121,7 @@ class ChargePointTest {
   @Test
   void dropsItsConnectionAtRandomTimesAndConnectsAgain() throws Exception {
     centralSystem.answerBootsWith(300);
-    run(new FaultPolicy(Duration.ofMillis(200), 0));
+    run(new FaultPolicy(Duration.ofMillis(200), 0, 0));
 
     // The heartbeat interval is 300s: every boot after the first one follows a drop.
     for (int boot = 0; boot < 3; boot++) {
@@ -132,7 +133,7 @@ class ChargePointTest {
   @Test
   void sendsEveryCallTwiceWhenAlwaysDuplicating() throws Exception {
     centralSystem.answerBootsWith(1);
-    run(new FaultPolicy(null, 1));
+    run(new FaultPolicy(null, 1, 0));
 
     for (String action : List.of("BootNotification", "Heartbeat")) {
       Call first = nextCall();
@@ -140,6 +141,57 @@ class ChargePointTest {
       assertThat(first.action()).isEqualTo(action);
       assertThat(second).isEqualTo(first);
     }
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void reportsItsConnectorsAfterBootThenSendsHeartbeats() throws Exception {
+    centralSystem.answerBootsWith(1);
+    run(FaultPolicy.NONE, 2);
+
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    for (int connector = 1; connector <= 2; connector++) {
+      Call report = nextCall();
+      assertThat(report.action()).isEqualTo("StatusNotification");
+      assertThat(report.payload().path("connectorId").intValue()).isEqualTo(connector);
+      assertThat(report.payload().path("status").stringValue()).isEqualTo("Available");
+      assertThat(report.payload().path("errorCode").stringValue()).isEqualTo("NoError");
+    }
+    assertThat(nextCall().action()).isEqualTo("Heartbeat");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void faultsAConnectorWithAnErrorCodeAndBringsItBack() throws Exception {
+    centralSystem.answerBootsWith(1);
+    run(new FaultPolicy(null, 0, 1), 1);
+
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    assertThat(nextCall().payload().path("status").stringValue()).isEqualTo("Available");
+    assertThat(nextCall().action()).isEqualTo("Heartbeat");
+
+    Call faulted = nextCall();
+    assertThat(faulted.payload().path("status").stringValue()).isEqualTo("Faulted");
+    assertThat(faulted.payload().path("errorCode").stringValue()).isNotEqualTo("NoError");
+    assertThat(nextCall().action()).isEqualTo("Heartbeat");
+
+    Call recovered = nextCall();
+    assertThat(recovered.payload().path("status").stringValue()).isEqualTo("Available");
+    assertThat(recovered.payload().path("errorCode").stringValue()).isEqualTo("NoError");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void reportsItsConnectorsAgainAfterConnectingAgain() throws Exception {
+    centralSystem.answerBootsWith(300);
+    run(FaultPolicy.NONE, 1);
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    assertThat(nextCall().action()).isEqualTo("StatusNotification");
+
+    centralSystem.disconnect();
+
+    assertThat(nextCall().action()).isEqualTo("BootNotification");
+    assertThat(nextCall().action()).isEqualTo("StatusNotification");
     assertThat(failure.get()).isNull();
   }
 
@@ -167,7 +219,13 @@ class ChargePointTest {
   }
 
   private void run(FaultPolicy faults) {
-    run(new ChargePoint(CLIENT, centralSystem.url(), "CP-TEST", WAIT, QUICK_RECONNECT, faults));
+    run(faults, 0);
+  }
+
+  private void run(FaultPolicy faults, int connectors) {
+    run(
+        new ChargePoint(
+            CLIENT, centralSystem.url(), "CP-TEST", WAIT, QUICK_RECONNECT, faults, connectors));
   }
 
   private void run(ChargePoint chargePoint) {

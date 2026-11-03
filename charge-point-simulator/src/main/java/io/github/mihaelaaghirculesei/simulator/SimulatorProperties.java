@@ -28,17 +28,22 @@ record SimulatorProperties(
   /**
    * @param count how many charge points run, each on its own connection
    * @param idPrefix the ids are this prefix and a number: SIM-0001, SIM-0002 and so on
+   * @param connectors how many connectors each charge point has
    * @param startSpread each charge point connects first after a random wait of up to this long, so
    *     a large simulator does not open all its connections in the same second
    */
   record ChargePoints(
       @DefaultValue("1") int count,
       @DefaultValue("SIM-") String idPrefix,
+      @DefaultValue("2") int connectors,
       @DefaultValue("5s") Duration startSpread) {
 
     ChargePoints {
       if (count < 1) {
         throw new IllegalArgumentException("count must be at least 1, got " + count);
+      }
+      if (connectors < 1) {
+        throw new IllegalArgumentException("connectors must be at least 1, got " + connectors);
       }
       if (startSpread.isNegative()) {
         throw new IllegalArgumentException("startSpread must not be negative");
@@ -66,12 +71,16 @@ record SimulatorProperties(
   /**
    * @param meanTimeBetweenDrops see {@link FaultPolicy}; unset, connections never drop
    * @param duplicateCallProbability see {@link FaultPolicy}
+   * @param connectorFaultProbability see {@link FaultPolicy}
    */
   record Faults(
-      @Nullable Duration meanTimeBetweenDrops, @DefaultValue("0") double duplicateCallProbability) {
+      @Nullable Duration meanTimeBetweenDrops,
+      @DefaultValue("0") double duplicateCallProbability,
+      @DefaultValue("0") double connectorFaultProbability) {
 
     FaultPolicy policy() {
-      return new FaultPolicy(meanTimeBetweenDrops, duplicateCallProbability);
+      return new FaultPolicy(
+          meanTimeBetweenDrops, duplicateCallProbability, connectorFaultProbability);
     }
   }
 }

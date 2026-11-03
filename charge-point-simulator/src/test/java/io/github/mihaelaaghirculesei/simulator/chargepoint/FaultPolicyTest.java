@@ -23,7 +23,7 @@ class FaultPolicyTest {
 
   @Test
   void dropsAfterTheMeanTimeOnAverage() {
-    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(10), 0);
+    FaultPolicy faults = new FaultPolicy(Duration.ofSeconds(10), 0, 0);
 
     double averageMillis =
         IntStream.range(0, 10_000)
@@ -38,7 +38,8 @@ class FaultPolicyTest {
   void refusesAMeanTimeThatIsNotPositive() {
     Duration zero = Duration.ZERO;
 
-    assertThatThrownBy(() -> new FaultPolicy(zero, 0)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new FaultPolicy(zero, 0, 0))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -49,7 +50,7 @@ class FaultPolicyTest {
 
   @Test
   void duplicatesTheConfiguredShareOfCalls() {
-    FaultPolicy faults = new FaultPolicy(null, 0.3);
+    FaultPolicy faults = new FaultPolicy(null, 0.3, 0);
 
     long duplicated =
         IntStream.range(0, 10_000).filter(i -> faults.duplicatesNextCall(random)).count();
@@ -60,7 +61,24 @@ class FaultPolicyTest {
   @ParameterizedTest
   @ValueSource(doubles = {-0.1, 1.1, Double.NaN})
   void refusesAProbabilityOutsideZeroToOne(double probability) {
-    assertThatThrownBy(() -> new FaultPolicy(null, probability))
+    assertThatThrownBy(() -> new FaultPolicy(null, probability, 0))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void faultsTheGivenShareOfConnectors() {
+    FaultPolicy faults = new FaultPolicy(null, 0, 0.3);
+
+    long faulted =
+        IntStream.range(0, 10_000).filter(i -> faults.faultsNextConnector(random)).count();
+
+    assertThat(faulted).isBetween(2_800L, 3_200L);
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {-0.1, 1.1, Double.NaN})
+  void refusesAConnectorFaultProbabilityOutOfRange(double probability) {
+    assertThatThrownBy(() -> new FaultPolicy(null, 0, probability))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

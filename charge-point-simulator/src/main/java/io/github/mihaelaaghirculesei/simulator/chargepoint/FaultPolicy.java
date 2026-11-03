@@ -12,11 +12,15 @@ import org.jspecify.annotations.Nullable;
  *     drops
  * @param duplicateCallProbability the share of calls sent twice with the same message id, from 0 to
  *     1
+ * @param connectorFaultProbability the chance, at each heartbeat, that an Available connector goes
+ *     to Faulted, from 0 to 1
  */
 public record FaultPolicy(
-    @Nullable Duration meanTimeBetweenDrops, double duplicateCallProbability) {
+    @Nullable Duration meanTimeBetweenDrops,
+    double duplicateCallProbability,
+    double connectorFaultProbability) {
 
-  public static final FaultPolicy NONE = new FaultPolicy(null, 0);
+  public static final FaultPolicy NONE = new FaultPolicy(null, 0, 0);
 
   public FaultPolicy {
     if (meanTimeBetweenDrops != null && !meanTimeBetweenDrops.isPositive()) {
@@ -25,6 +29,10 @@ public record FaultPolicy(
     if (!(duplicateCallProbability >= 0 && duplicateCallProbability <= 1)) {
       throw new IllegalArgumentException(
           "duplicateCallProbability must be between 0 and 1, got " + duplicateCallProbability);
+    }
+    if (!(connectorFaultProbability >= 0 && connectorFaultProbability <= 1)) {
+      throw new IllegalArgumentException(
+          "connectorFaultProbability must be between 0 and 1, got " + connectorFaultProbability);
     }
   }
 
@@ -46,5 +54,10 @@ public record FaultPolicy(
   /** Whether the next call is sent twice. */
   public boolean duplicatesNextCall(RandomGenerator random) {
     return random.nextDouble() < duplicateCallProbability;
+  }
+
+  /** Whether an Available connector goes to Faulted now. */
+  public boolean faultsNextConnector(RandomGenerator random) {
+    return random.nextDouble() < connectorFaultProbability;
   }
 }
