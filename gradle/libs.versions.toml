@@ -1,15 +1,15 @@
 [versions]
-spring-boot = "4.1.1"
+spring-boot = "4.1.2"
 spotless = "8.10.4"
 google-java-format = "1.36.1"
 errorprone = "2.50.0"
 errorprone-plugin = "5.1.1"
 nullaway = "0.14.2"
 jacoco = "0.8.15"
-springdoc = "3.1.1"
+springdoc = "3.2.0"
 # Must equal the Jackson 3 version managed by the Spring Boot BOM; verifyJacksonAlignment checks it.
 # See docs/adr/0006.
-jackson = "3.1.5"
+jackson = "3.1.7"
 # 3.0.7 needs Jackson 3.2; stays on the 3.1 line until Spring Boot moves (docs/adr/0006).
 json-schema-validator = "3.0.6"
 # ocpp-protocol has no Spring Boot BOM: it stays on JUnit Platform 1.x for jqwik.
@@ -18,7 +18,7 @@ jqwik = "1.10.2"
 # Same version as the Spring Boot BOM.
 assertj = "3.27.7"
 # Spring Modulith is not in the Spring Boot BOM; the 2.1 line matches Spring Boot 4.1.
-spring-modulith = "2.1.1"
+spring-modulith = "2.1.2"
 # The version Spring Modulith 2.1.1 is built with; a newer one would replace it under Modulith too.
 archunit = "1.4.2"
 # Same version as the Spring Boot BOM; ocpp-protocol has no BOM to take it from.
