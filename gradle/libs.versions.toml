@@ -2,10 +2,10 @@
 spring-boot = "4.1.2"
 spotless = "8.10.4"
 google-java-format = "1.36.1"
-errorprone = "2.50.0"
+errorprone = "2.51.0"
 errorprone-plugin = "5.1.1"
-nullaway = "0.14.2"
-jacoco = "0.8.15"
+nullaway = "0.14.3"
+jacoco = "0.8.16"
 springdoc = "3.2.0"
 # Must equal the Jackson 3 version managed by the Spring Boot BOM; verifyJacksonAlignment checks it.
 # See docs/adr/0006.
