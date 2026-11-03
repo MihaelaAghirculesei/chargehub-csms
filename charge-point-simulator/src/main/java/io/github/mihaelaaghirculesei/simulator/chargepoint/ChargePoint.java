@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.simulator.chargepoint;
 
 import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationResponse;
+import io.github.mihaelaaghirculesei.ocpp.message.ChargePointStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.HeartbeatResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.StatusNotificationRequest;
@@ -11,6 +12,8 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
@@ -37,11 +40,13 @@ public final class ChargePoint {
   private final String id;
   private final Duration callTimeout;
   private final ReconnectPolicy reconnect;
-  private final FaultPolicy faults;
+  // Changed from another thread by whoever wants the faults to stop.
+  private volatile FaultPolicy faults;
   private final Connectors connectors;
   private final RandomGenerator random = RandomGenerator.getDefault();
   // Read by tests from another thread.
   private final AtomicInteger failedAttempts = new AtomicInteger();
+  private final Map<Integer, ChargePointStatus> reportedLast = new ConcurrentHashMap<>();
 
   public ChargePoint(
       HttpClient client,
@@ -66,6 +71,16 @@ public final class ChargePoint {
 
   int failedAttempts() {
     return failedAttempts.get();
+  }
+
+  /** The faults to produce from now on; a connection that was due to drop still does. */
+  public void changeFaults(FaultPolicy faults) {
+    this.faults = faults;
+  }
+
+  /** The status of each connector that the central system last answered for, by connector id. */
+  public Map<Integer, ChargePointStatus> reportedLast() {
+    return Map.copyOf(reportedLast);
   }
 
   /** Runs one session after the other until the thread is interrupted. */
@@ -125,6 +140,7 @@ public final class ChargePoint {
     for (StatusNotificationRequest report : reports) {
       // StatusNotification.conf has no fields, so there is nothing to read from the answer.
       call(connection, Action.STATUS_NOTIFICATION, report, ObjectNode.class);
+      reportedLast.put(report.connectorId(), report.status());
     }
   }
 

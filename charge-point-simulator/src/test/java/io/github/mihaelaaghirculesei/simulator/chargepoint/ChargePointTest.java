@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import io.github.mihaelaaghirculesei.ocpp.frame.Call;
+import io.github.mihaelaaghirculesei.ocpp.message.ChargePointStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
 import io.github.mihaelaaghirculesei.simulator.FakeCentralSystem;
 import java.net.URI;
@@ -178,6 +179,36 @@ class ChargePointTest {
     Call recovered = nextCall();
     assertThat(recovered.payload().path("status").stringValue()).isEqualTo("Available");
     assertThat(recovered.payload().path("errorCode").stringValue()).isEqualTo("NoError");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void stopsFaultingOnceTheFaultsAreChangedAndRemembersWhatItReported() throws Exception {
+    centralSystem.answerBootsWith(1);
+    ChargePoint chargePoint =
+        new ChargePoint(
+            CLIENT,
+            centralSystem.url(),
+            "CP-TEST",
+            WAIT,
+            QUICK_RECONNECT,
+            new FaultPolicy(null, 0, 1),
+            1);
+    run(chargePoint);
+    await()
+        .atMost(WAIT)
+        .until(() -> chargePoint.reportedLast().get(1) == ChargePointStatus.FAULTED);
+
+    chargePoint.changeFaults(FaultPolicy.NONE);
+
+    await()
+        .atMost(WAIT)
+        .until(() -> chargePoint.reportedLast().get(1) == ChargePointStatus.AVAILABLE);
+    Duration threeHeartbeats = Duration.ofSeconds(3);
+    await()
+        .during(threeHeartbeats)
+        .atMost(threeHeartbeats.plus(WAIT))
+        .until(() -> chargePoint.reportedLast().get(1) == ChargePointStatus.AVAILABLE);
     assertThat(failure.get()).isNull();
   }
 
