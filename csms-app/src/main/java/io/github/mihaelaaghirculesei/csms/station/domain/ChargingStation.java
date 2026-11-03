@@ -135,12 +135,14 @@ public final class ChargingStation {
   /**
    * Takes the status the charge point reports for one connector. Reports can arrive twice or out of
    * order, so a report older than the last one taken is ignored, and the same status again changes
-   * only the time of the last report.
+   * only the time and the error of the last report.
    *
+   * @param error what the charge point reports as wrong
    * @param reportedAt when the charge point says the status was reached
    */
-  public ReportOutcome report(int connectorId, ConnectorStatus status, Instant reportedAt) {
-    Connector reported = new Connector(connectorId, status, reportedAt);
+  public ReportOutcome report(
+      int connectorId, ConnectorStatus status, ConnectorError error, Instant reportedAt) {
+    Connector reported = new Connector(connectorId, status, error, reportedAt);
     Connector current = connectors.get(connectorId);
     if (current != null && reportedAt.isBefore(current.reportedAt())) {
       return new Stale(current, reportedAt);
@@ -154,7 +156,8 @@ public final class ChargingStation {
       return new Rejected(connectorId, previous, status);
     }
     connectors.put(connectorId, reported);
-    return new Applied(new ConnectorStatusChanged(id, connectorId, previous, status, reportedAt));
+    return new Applied(
+        new ConnectorStatusChanged(id, connectorId, previous, status, error.code(), reportedAt));
   }
 
   private static boolean isAllowed(
