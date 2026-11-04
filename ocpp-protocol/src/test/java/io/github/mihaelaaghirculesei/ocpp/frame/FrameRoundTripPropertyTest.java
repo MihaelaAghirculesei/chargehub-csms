@@ -69,15 +69,14 @@ class FrameRoundTripPropertyTest {
 
   private static ObjectNode toObject(Map<String, Object> fields) {
     ObjectNode object = JsonNodeFactory.instance.objectNode();
-    fields.forEach(
-        (name, value) -> {
-          switch (value) {
-            case String text -> object.put(name, text);
-            case Integer number -> object.put(name, number);
-            case Boolean flag -> object.put(name, flag);
-            default -> throw new IllegalArgumentException("Unexpected value " + value);
-          }
-        });
+    fields.forEach((name, value) -> {
+      switch (value) {
+        case String text -> object.put(name, text);
+        case Integer number -> object.put(name, number);
+        case Boolean flag -> object.put(name, flag);
+        default -> throw new IllegalArgumentException("Unexpected value " + value);
+      }
+    });
     return object;
   }
 }

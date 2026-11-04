@@ -286,15 +286,14 @@ class ChargePointTest {
   private void run(ChargePoint chargePoint) {
     running =
         Thread.ofPlatform()
-            .start(
-                () -> {
-                  try {
-                    chargePoint.run();
-                  } catch (InterruptedException _) {
-                    Thread.currentThread().interrupt();
-                  } catch (RuntimeException e) {
-                    failure.set(e);
-                  }
-                });
+            .start(() -> {
+              try {
+                chargePoint.run();
+              } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
+              } catch (RuntimeException e) {
+                failure.set(e);
+              }
+            });
   }
 }

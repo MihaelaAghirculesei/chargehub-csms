@@ -72,16 +72,15 @@ class ChargePointRunnerTest {
   private ChargePointRunner runner(int count) {
     List<ChargePoint> chargePoints =
         IntStream.rangeClosed(1, count)
-            .mapToObj(
-                n ->
-                    new ChargePoint(
-                        client,
-                        centralSystem.url(),
-                        "CP-RUN-" + n,
-                        WAIT,
-                        new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0),
-                        FaultPolicy.NONE,
-                        0))
+            .mapToObj(n ->
+                new ChargePoint(
+                    client,
+                    centralSystem.url(),
+                    "CP-RUN-" + n,
+                    WAIT,
+                    new ReconnectPolicy(Duration.ofMillis(50), Duration.ZERO, 0),
+                    FaultPolicy.NONE,
+                    0))
             .toList();
     runner = new ChargePointRunner(chargePoints, Duration.ofMillis(200));
     return runner;

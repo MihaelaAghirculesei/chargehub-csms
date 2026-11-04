@@ -42,11 +42,10 @@ class HeartbeatHandler implements ActionHandler {
     Instant now = clock.instant();
     stations
         .findById(chargePointId)
-        .ifPresent(
-            station -> {
-              station.seen(now).ifPresent(events::publishEvent);
-              stations.save(station);
-            });
+        .ifPresent(station -> {
+          station.seen(now).ifPresent(events::publishEvent);
+          stations.save(station);
+        });
     return OcppMessages.write(new HeartbeatResponse(now));
   }
 }

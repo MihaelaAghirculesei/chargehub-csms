@@ -23,12 +23,11 @@ class ConnectorsTest {
 
     assertThat(reports).extracting(StatusNotificationRequest::connectorId).containsExactly(1, 2);
     assertThat(reports)
-        .allSatisfy(
-            report -> {
-              assertThat(report.status()).isEqualTo(ChargePointStatus.AVAILABLE);
-              assertThat(report.errorCode()).isEqualTo(ChargePointErrorCode.NO_ERROR);
-              assertThat(report.timestamp()).isEqualTo(NOW);
-            });
+        .allSatisfy(report -> {
+          assertThat(report.status()).isEqualTo(ChargePointStatus.AVAILABLE);
+          assertThat(report.errorCode()).isEqualTo(ChargePointErrorCode.NO_ERROR);
+          assertThat(report.timestamp()).isEqualTo(NOW);
+        });
   }
 
   @Test

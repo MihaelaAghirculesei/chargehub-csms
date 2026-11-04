@@ -16,16 +16,19 @@ class FrameCodecTest {
   private static final String BOOT_NOTIFICATION =
       """
       [2,"19223201","BootNotification",\
-      {"chargePointVendor":"VendorX","chargePointModel":"SingleSocketCharger"}]""";
+      {"chargePointVendor":"VendorX","chargePointModel":"SingleSocketCharger"}]\
+      """;
 
   private static final String BOOT_NOTIFICATION_RESULT =
       """
       [3,"19223201",\
-      {"status":"Accepted","currentTime":"2013-02-01T20:53:32.486Z","heartbeatInterval":300}]""";
+      {"status":"Accepted","currentTime":"2013-02-01T20:53:32.486Z","heartbeatInterval":300}]\
+      """;
 
   private static final String NOT_IMPLEMENTED =
       """
-      [4,"19223201","NotImplemented","Action DataTransfer is not supported",{}]""";
+      [4,"19223201","NotImplemented","Action DataTransfer is not supported",{}]\
+      """;
 
   private final FrameCodec codec = new FrameCodec();
 

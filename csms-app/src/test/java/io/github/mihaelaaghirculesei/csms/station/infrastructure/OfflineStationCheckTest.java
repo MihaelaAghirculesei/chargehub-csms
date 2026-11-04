@@ -64,11 +64,10 @@ class OfflineStationCheckTest {
 
   @Test
   void takesAsOfflineAStationThatMissedTooManyHeartbeats() {
-    inTransaction(
-        () -> {
-          stations.save(online("CP-SILENT", SILENT_SINCE));
-          stations.save(online("CP-LATE", LATE_SINCE));
-        });
+    inTransaction(() -> {
+      stations.save(online("CP-SILENT", SILENT_SINCE));
+      stations.save(online("CP-LATE", LATE_SINCE));
+    });
 
     check.run();
 
@@ -95,12 +94,11 @@ class OfflineStationCheckTest {
   void doesNothingWhileAnotherInstanceHoldsTheLock() {
     inTransaction(() -> stations.save(online("CP-LOCKED", SILENT_SINCE)));
 
-    inTransaction(
-        () -> {
-          assertThat(locks.tryLockForTransaction(OfflineStationCheck.LOCK_KEY)).isTrue();
-          // On another thread, so that the check runs in a transaction of its own.
-          CompletableFuture.runAsync(check::run).orTimeout(10, TimeUnit.SECONDS).join();
-        });
+    inTransaction(() -> {
+      assertThat(locks.tryLockForTransaction(OfflineStationCheck.LOCK_KEY)).isTrue();
+      // On another thread, so that the check runs in a transaction of its own.
+      CompletableFuture.runAsync(check::run).orTimeout(10, TimeUnit.SECONDS).join();
+    });
 
     assertThat(load("CP-LOCKED").online()).isTrue();
     assertThat(departures("CP-LOCKED")).isEmpty();
@@ -168,12 +166,11 @@ class OfflineStationCheckTest {
     @EventListener
     void on(StationWentOffline departure) {
       if (departure.stationId().equals(STATION)) {
-        newTransaction.executeWithoutResult(
-            status -> {
-              ChargingStation station = stations.findById(STATION).orElseThrow();
-              station.seen(NOW);
-              stations.save(station);
-            });
+        newTransaction.executeWithoutResult(status -> {
+          ChargingStation station = stations.findById(STATION).orElseThrow();
+          station.seen(NOW);
+          stations.save(station);
+        });
       }
     }
   }

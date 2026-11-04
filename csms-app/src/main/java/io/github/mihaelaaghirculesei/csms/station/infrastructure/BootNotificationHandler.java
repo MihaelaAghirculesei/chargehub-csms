@@ -61,11 +61,10 @@ class BootNotificationHandler implements ActionHandler {
     ChargingStation station =
         stations
             .findById(chargePointId)
-            .map(
-                known -> {
-                  known.boot(details, now);
-                  return known;
-                })
+            .map(known -> {
+              known.boot(details, now);
+              return known;
+            })
             .orElseGet(() -> ChargingStation.register(chargePointId, details, now));
     station.seen(now).ifPresent(events::publishEvent);
     stations.save(station);
