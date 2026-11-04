@@ -115,10 +115,9 @@ class CsmsConnectionTest {
 
   @Test
   void returnsTheTypedAnswerToItsCall() throws Exception {
-    centralSystem.answerWith(
-        call ->
-            "[3,\"%s\",{\"status\":\"Accepted\",\"currentTime\":\"2026-10-19T08:00:00Z\",\"interval\":300}]"
-                .formatted(call.messageId()));
+    centralSystem.answerWith(call ->
+        "[3,\"%s\",{\"status\":\"Accepted\",\"currentTime\":\"2026-10-19T08:00:00Z\",\"interval\":300}]"
+            .formatted(call.messageId()));
 
     try (CsmsConnection connection = open(WAIT)) {
       BootNotificationResponse response =
@@ -141,10 +140,8 @@ class CsmsConnectionTest {
             "V".repeat(21), "ModelY", null, null, null, null, null, null, null);
 
     try (CsmsConnection connection = open(WAIT)) {
-      assertThatThrownBy(
-              () ->
-                  connection.call(
-                      Action.BOOT_NOTIFICATION, tooLong, BootNotificationResponse.class))
+      assertThatThrownBy(() ->
+              connection.call(Action.BOOT_NOTIFICATION, tooLong, BootNotificationResponse.class))
           .isInstanceOf(SessionFailedException.class)
           .hasMessageContaining("REQUEST is invalid");
       Duration quietPeriod = Duration.ofMillis(500);
@@ -179,15 +176,14 @@ class CsmsConnectionTest {
 
   @Test
   void failsAtOnceWhenTheConnectionClosesDuringACall() {
-    centralSystem.answerWith(
-        call -> {
-          try {
-            centralSystem.disconnect();
-          } catch (IOException e) {
-            throw new UncheckedIOException(e);
-          }
-          return null;
-        });
+    centralSystem.answerWith(call -> {
+      try {
+        centralSystem.disconnect();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+      return null;
+    });
 
     assertThat(failureOfABootNotification(LONG_TIMEOUT))
         .hasCauseInstanceOf(ConnectionClosedException.class);

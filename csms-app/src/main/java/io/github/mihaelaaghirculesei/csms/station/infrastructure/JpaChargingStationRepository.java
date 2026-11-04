@@ -39,11 +39,10 @@ class JpaChargingStationRepository implements ChargingStationRepository {
     ChargingStationEntity entity =
         entities
             .findById(station.id())
-            .map(
-                found -> {
-                  found.copy(station);
-                  return found;
-                })
+            .map(found -> {
+              found.copy(station);
+              return found;
+            })
             .orElseGet(() -> new ChargingStationEntity(station));
     entities.save(entity);
   }

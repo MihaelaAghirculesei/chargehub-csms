@@ -89,14 +89,13 @@ class SimulatedChargePointTest {
     Thread thread =
         Thread.ofVirtual()
             .name(chargePointId)
-            .start(
-                () -> {
-                  try {
-                    chargePoint.run();
-                  } catch (InterruptedException e) {
-                    // Interrupted by the test: the charge point is done.
-                  }
-                });
+            .start(() -> {
+              try {
+                chargePoint.run();
+              } catch (InterruptedException e) {
+                // Interrupted by the test: the charge point is done.
+              }
+            });
     return () -> {
       thread.interrupt();
       thread.join(WAIT);

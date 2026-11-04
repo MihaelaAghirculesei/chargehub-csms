@@ -125,22 +125,21 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
    */
   public void answerBootsWith(int interval, RegistrationStatus... statuses) {
     Queue<RegistrationStatus> pending = new ConcurrentLinkedQueue<>(List.of(statuses));
-    answerWith(
-        call -> {
-          ObjectNode payload =
-              switch (call.action()) {
-                case "BootNotification" ->
-                    OcppMessages.write(
-                        new BootNotificationResponse(
-                            Objects.requireNonNullElse(pending.poll(), RegistrationStatus.ACCEPTED),
-                            NOW,
-                            interval));
-                case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
-                case "StatusNotification" -> JsonNodeFactory.instance.objectNode();
-                default -> throw new IllegalStateException("Unexpected action " + call.action());
-              };
-          return CODEC.encode(new CallResult(call.messageId(), payload));
-        });
+    answerWith(call -> {
+      ObjectNode payload =
+          switch (call.action()) {
+            case "BootNotification" ->
+                OcppMessages.write(
+                    new BootNotificationResponse(
+                        Objects.requireNonNullElse(pending.poll(), RegistrationStatus.ACCEPTED),
+                        NOW,
+                        interval));
+            case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
+            case "StatusNotification" -> JsonNodeFactory.instance.objectNode();
+            default -> throw new IllegalStateException("Unexpected action " + call.action());
+          };
+      return CODEC.encode(new CallResult(call.messageId(), payload));
+    });
   }
 
   public void disconnect() throws IOException {

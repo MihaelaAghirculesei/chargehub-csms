@@ -184,12 +184,11 @@ public final class CsmsConnection implements AutoCloseable {
           lastSend
               .exceptionally(e -> null)
               .thenCompose(previous -> webSocket.sendText(text, true))
-              .whenComplete(
-                  (sent, failure) -> {
-                    if (failure != null) {
-                      closed();
-                    }
-                  });
+              .whenComplete((sent, failure) -> {
+                if (failure != null) {
+                  closed();
+                }
+              });
     }
   }
 

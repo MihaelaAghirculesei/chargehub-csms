@@ -123,16 +123,15 @@ class ConnectorStatusAgainstSimulatorTest {
   private void assertThatCentralSystemMatches(ChargePoint chargePoint) {
     chargePoint
         .reportedLast()
-        .forEach(
-            (connectorId, status) ->
-                assertThat(
-                        stations
-                            .findById(chargePoint.id())
-                            .orElseThrow()
-                            .connector(connectorId)
-                            .map(Connector::status)
-                            .map(Enum::name))
-                    .as("connector %d of %s", connectorId, chargePoint.id())
-                    .contains(status.name()));
+        .forEach((connectorId, status) ->
+            assertThat(
+                    stations
+                        .findById(chargePoint.id())
+                        .orElseThrow()
+                        .connector(connectorId)
+                        .map(Connector::status)
+                        .map(Enum::name))
+                .as("connector %d of %s", connectorId, chargePoint.id())
+                .contains(status.name()));
   }
 }

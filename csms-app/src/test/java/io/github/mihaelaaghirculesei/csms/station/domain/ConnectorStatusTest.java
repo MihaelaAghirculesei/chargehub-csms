@@ -46,15 +46,13 @@ class ConnectorStatusTest {
   static Stream<Arguments> everyPairOfStatuses() {
     ConnectorStatus[] statuses = ConnectorStatus.values();
     return rows().stream()
-        .flatMap(
-            row ->
-                IntStream.range(0, statuses.length)
-                    .mapToObj(
-                        column ->
-                            Arguments.of(
-                                ConnectorStatus.valueOf(row.getFirst()),
-                                statuses[column],
-                                row.get(column + 1).equals("x"))));
+        .flatMap(row ->
+            IntStream.range(0, statuses.length)
+                .mapToObj(column ->
+                    Arguments.of(
+                        ConnectorStatus.valueOf(row.getFirst()),
+                        statuses[column],
+                        row.get(column + 1).equals("x"))));
   }
 
   @ParameterizedTest(name = "{0} to {1}: {2}")

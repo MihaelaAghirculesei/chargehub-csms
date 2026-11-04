@@ -23,17 +23,16 @@ class SimulatorConfiguration {
     RandomGenerator random = RandomGenerator.getDefault();
     return new ChargePointRunner(
         properties.chargePoints().ids().stream()
-            .map(
-                id ->
-                    new ChargePoint(
-                        httpClient,
-                        properties.centralSystem(),
-                        id,
-                        properties.callTimeout(),
-                        properties.reconnect().policy(),
-                        properties.faults().policy(),
-                        properties.chargePoints().connectors(),
-                        Clock.offset(Clock.systemUTC(), properties.faults().clockSkew(random))))
+            .map(id ->
+                new ChargePoint(
+                    httpClient,
+                    properties.centralSystem(),
+                    id,
+                    properties.callTimeout(),
+                    properties.reconnect().policy(),
+                    properties.faults().policy(),
+                    properties.chargePoints().connectors(),
+                    Clock.offset(Clock.systemUTC(), properties.faults().clockSkew(random))))
             .toList(),
         properties.chargePoints().startSpread());
   }

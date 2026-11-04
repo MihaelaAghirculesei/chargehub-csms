@@ -23,7 +23,8 @@ class CallDispatcherTest {
 
   private static final String RESERVE_NOW =
       """
-      {"connectorId":1,"expiryDate":"2026-10-17T12:00:00Z","idTag":"TAG-1","reservationId":7}""";
+      {"connectorId":1,"expiryDate":"2026-10-17T12:00:00Z","idTag":"TAG-1","reservationId":7}\
+      """;
 
   private final AtomicInteger reserveNowCalls = new AtomicInteger();
 

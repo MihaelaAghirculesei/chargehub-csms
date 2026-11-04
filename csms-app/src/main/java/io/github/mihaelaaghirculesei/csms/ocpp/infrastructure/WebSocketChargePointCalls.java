@@ -47,11 +47,10 @@ class WebSocketChargePointCalls implements ChargePointCalls {
     // What we send is checked against the same schemas as what we receive (docs/adr/0008).
     validator
         .validate(action.wireName(), PayloadType.REQUEST, payload)
-        .ifPresent(
-            violation -> {
-              throw new IllegalArgumentException(
-                  "Invalid " + action.wireName() + " request: " + violation.description());
-            });
+        .ifPresent(violation -> {
+          throw new IllegalArgumentException(
+              "Invalid " + action.wireName() + " request: " + violation.description());
+        });
     WebSocketSession session =
         connections
             .find(chargePointId)
@@ -73,10 +72,9 @@ class WebSocketChargePointCalls implements ChargePointCalls {
   private CallResult checkedResponse(Action action, CallResult result) {
     validator
         .validate(action.wireName(), PayloadType.RESPONSE, result.payload())
-        .ifPresent(
-            violation -> {
-              throw new InvalidResponseException(action.wireName(), violation.description());
-            });
+        .ifPresent(violation -> {
+          throw new InvalidResponseException(action.wireName(), violation.description());
+        });
     return result;
   }
 }

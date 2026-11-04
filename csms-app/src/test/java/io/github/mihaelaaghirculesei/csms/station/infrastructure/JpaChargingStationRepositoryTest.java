@@ -72,10 +72,8 @@ class JpaChargingStationRepositoryTest {
 
   @Test
   void keepsWhetherTheStationIsOnlineAndWhenItWasLastSeen() {
-    inTransaction(
-        () ->
-            stations.save(
-                ChargingStation.restore("CP-OFFLINE", DETAILS, T0, T1, false, List.of())));
+    inTransaction(() ->
+        stations.save(ChargingStation.restore("CP-OFFLINE", DETAILS, T0, T1, false, List.of())));
 
     ChargingStation loaded = load("CP-OFFLINE");
     assertThat(loaded.online()).isFalse();
@@ -85,14 +83,13 @@ class JpaChargingStationRepositoryTest {
   @Test
   void findsTheOnlineStationsNotSeenSinceACutoffTheLongestSilentFirst() {
     Instant cutoff = Instant.parse("2000-01-01T00:00:00Z");
-    inTransaction(
-        () -> {
-          stations.save(seenAt("CP-QUIET-2", cutoff.minusSeconds(2), true));
-          stations.save(seenAt("CP-QUIET-1", cutoff.minusSeconds(3), true));
-          stations.save(seenAt("CP-QUIET-3", cutoff.minusSeconds(1), true));
-          stations.save(seenAt("CP-QUIET-OFFLINE", cutoff.minusSeconds(3), false));
-          stations.save(seenAt("CP-QUIET-AT-CUTOFF", cutoff, true));
-        });
+    inTransaction(() -> {
+      stations.save(seenAt("CP-QUIET-2", cutoff.minusSeconds(2), true));
+      stations.save(seenAt("CP-QUIET-1", cutoff.minusSeconds(3), true));
+      stations.save(seenAt("CP-QUIET-3", cutoff.minusSeconds(1), true));
+      stations.save(seenAt("CP-QUIET-OFFLINE", cutoff.minusSeconds(3), false));
+      stations.save(seenAt("CP-QUIET-AT-CUTOFF", cutoff, true));
+    });
 
     List<ChargingStation> found =
         new TransactionTemplate(transactionManager)
@@ -108,14 +105,13 @@ class JpaChargingStationRepositoryTest {
     inTransaction(() -> stations.save(station));
     StationDetails updated = new StationDetails("VendorX", "SingleSocketCharger", "SN-1", "1.1.0");
 
-    inTransaction(
-        () -> {
-          ChargingStation loaded = stations.findById("CP-UPDATE").orElseThrow();
-          loaded.boot(updated, T1);
-          loaded.report(1, PREPARING, ConnectorError.NONE, T1);
-          loaded.report(2, AVAILABLE, ConnectorError.NONE, T1);
-          stations.save(loaded);
-        });
+    inTransaction(() -> {
+      ChargingStation loaded = stations.findById("CP-UPDATE").orElseThrow();
+      loaded.boot(updated, T1);
+      loaded.report(1, PREPARING, ConnectorError.NONE, T1);
+      loaded.report(2, AVAILABLE, ConnectorError.NONE, T1);
+      stations.save(loaded);
+    });
 
     ChargingStation loaded = load("CP-UPDATE");
     assertThat(loaded.details()).isEqualTo(updated);
@@ -130,20 +126,17 @@ class JpaChargingStationRepositoryTest {
   void refusesToOverwriteAChangeMadeAfterTheStationWasLoaded() {
     inTransaction(() -> stations.save(ChargingStation.register("CP-RACE", DETAILS, T0)));
 
-    assertThatThrownBy(
-            () ->
-                inTransaction(
-                    () -> {
-                      ChargingStation first = stations.findById("CP-RACE").orElseThrow();
-                      inNewTransaction(
-                          () -> {
-                            ChargingStation second = stations.findById("CP-RACE").orElseThrow();
-                            second.report(1, AVAILABLE, ConnectorError.NONE, T1);
-                            stations.save(second);
-                          });
-                      first.report(1, CHARGING, ConnectorError.NONE, T1);
-                      stations.save(first);
-                    }))
+    assertThatThrownBy(() ->
+            inTransaction(() -> {
+              ChargingStation first = stations.findById("CP-RACE").orElseThrow();
+              inNewTransaction(() -> {
+                ChargingStation second = stations.findById("CP-RACE").orElseThrow();
+                second.report(1, AVAILABLE, ConnectorError.NONE, T1);
+                stations.save(second);
+              });
+              first.report(1, CHARGING, ConnectorError.NONE, T1);
+              stations.save(first);
+            }))
         .isInstanceOf(ObjectOptimisticLockingFailureException.class);
 
     ChargingStation loaded = load("CP-RACE");
