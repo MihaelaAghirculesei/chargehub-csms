@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,7 @@ public final class ChargePoint {
   private final Duration callTimeout;
   private final ReconnectPolicy reconnect;
   // Changed from another thread by whoever wants the faults to stop.
-  private volatile FaultPolicy faults;
+  private final AtomicReference<FaultPolicy> faults;
   private final Connectors connectors;
   private final Clock clock;
   private final RandomGenerator random = RandomGenerator.getDefault();
@@ -77,7 +78,7 @@ public final class ChargePoint {
     this.id = id;
     this.callTimeout = callTimeout;
     this.reconnect = reconnect;
-    this.faults = faults;
+    this.faults = new AtomicReference<>(faults);
     this.connectors = new Connectors(connectors);
     this.clock = clock;
   }
@@ -92,7 +93,7 @@ public final class ChargePoint {
 
   /** The faults to produce from now on; a connection that was due to drop still does. */
   public void changeFaults(FaultPolicy faults) {
-    this.faults = faults;
+    this.faults.set(faults);
   }
 
   /** The status of each connector that the central system last answered for, by connector id. */
@@ -115,7 +116,7 @@ public final class ChargePoint {
 
   private void session() throws InterruptedException {
     try (CsmsConnection connection = CsmsConnection.open(client, centralSystem, id, callTimeout)) {
-      faults.nextDrop(random).ifPresent(connection::dropAfter);
+      faults.get().nextDrop(random).ifPresent(connection::dropAfter);
       Duration heartbeatInterval = boot(connection);
       // A charge point that was accepted again starts its back-off from the beginning.
       failedAttempts.set(0);
@@ -128,7 +129,7 @@ public final class ChargePoint {
             Action.HEARTBEAT,
             JsonNodeFactory.instance.objectNode(),
             HeartbeatResponse.class);
-        report(connection, connectors.advance(faults, random, clock.instant()));
+        report(connection, connectors.advance(faults.get(), random, clock.instant()));
       }
     }
   }
@@ -164,7 +165,7 @@ public final class ChargePoint {
   private <T> T call(
       CsmsConnection connection, Action action, Object request, Class<T> responseType)
       throws InterruptedException {
-    return faults.duplicatesNextCall(random)
+    return faults.get().duplicatesNextCall(random)
         ? connection.callTwice(action, request, responseType)
         : connection.call(action, request, responseType);
   }
