@@ -64,6 +64,9 @@ public final class ChargePoint {
   /**
    * @param clock what the charge point believes the time is, for every timestamp it sends
    */
+  // Each parameter is a separate setting of one simulated device; grouping them in a holder
+  // object would only move the same list somewhere else.
+  @SuppressWarnings("java:S107")
   public ChargePoint(
       HttpClient client,
       URI centralSystem,
