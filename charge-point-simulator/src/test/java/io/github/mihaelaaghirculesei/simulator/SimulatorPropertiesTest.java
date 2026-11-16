@@ -46,9 +46,9 @@ class SimulatorPropertiesTest {
     List<Duration> skews = Stream.generate(() -> faults.clockSkew(random)).limit(1_000).toList();
 
     assertThat(skews)
-        .allMatch(skew -> skew.compareTo(minimum) >= 0 && skew.compareTo(maximum) <= 0);
-    assertThat(skews).anyMatch(Duration::isNegative);
-    assertThat(skews).anyMatch(Duration::isPositive);
+        .allMatch(skew -> skew.compareTo(minimum) >= 0 && skew.compareTo(maximum) <= 0)
+        .anyMatch(Duration::isNegative)
+        .anyMatch(Duration::isPositive);
   }
 
   @Test
