@@ -39,6 +39,9 @@ class StatusNotificationHandler implements ActionHandler {
 
   static final String REPORTS_METRIC = "csms.connector.status.reports";
 
+  private static final String CHARGE_POINT_ID = "chargePointId";
+  private static final String CONNECTOR_ID = "connectorId";
+
   private static final Logger log = LoggerFactory.getLogger(StatusNotificationHandler.class);
 
   private final Clock clock;
@@ -72,8 +75,8 @@ class StatusNotificationHandler implements ActionHandler {
     if (found.isEmpty()) {
       // A charge point must boot first; a CALLERROR would only make it send the report again.
       log.atWarn()
-          .addKeyValue("chargePointId", chargePointId)
-          .addKeyValue("connectorId", report.connectorId())
+          .addKeyValue(CHARGE_POINT_ID, chargePointId)
+          .addKeyValue(CONNECTOR_ID, report.connectorId())
           .log("Ignoring a status report from {}, which has not booted", chargePointId);
       count("unknown_station");
     } else {
@@ -98,8 +101,8 @@ class StatusNotificationHandler implements ActionHandler {
       case Unchanged _ -> "unchanged";
       case Stale(var current, var reportedAt) -> {
         log.atInfo()
-            .addKeyValue("chargePointId", chargePointId)
-            .addKeyValue("connectorId", current.id())
+            .addKeyValue(CHARGE_POINT_ID, chargePointId)
+            .addKeyValue(CONNECTOR_ID, current.id())
             .log(
                 "Ignoring a late status report from {} for connector {}: {} at {} is older than {} at {}",
                 chargePointId,
@@ -110,10 +113,10 @@ class StatusNotificationHandler implements ActionHandler {
                 current.reportedAt());
         yield "stale";
       }
-      case Rejected(var connectorId, var current, var _) -> {
+      case Rejected(var connectorId, var current, _) -> {
         log.atWarn()
-            .addKeyValue("chargePointId", chargePointId)
-            .addKeyValue("connectorId", connectorId)
+            .addKeyValue(CHARGE_POINT_ID, chargePointId)
+            .addKeyValue(CONNECTOR_ID, connectorId)
             .log(
                 "Ignoring a status change OCPP 1.6 does not allow from {} for connector {}: {} to {}",
                 chargePointId,
