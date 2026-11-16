@@ -92,7 +92,7 @@ class SimulatedChargePointTest {
             .start(() -> {
               try {
                 chargePoint.run();
-              } catch (InterruptedException e) {
+              } catch (InterruptedException _) {
                 // Interrupted by the test: the charge point is done.
               }
             });

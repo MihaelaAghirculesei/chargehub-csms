@@ -186,7 +186,7 @@ class ChargePointTest {
   }
 
   @Test
-  void stopsFaultingOnceTheFaultsAreChangedAndRemembersWhatItReported() throws Exception {
+  void stopsFaultingOnceTheFaultsAreChangedAndRemembersWhatItReported() {
     centralSystem.answerBootsWith(1);
     ChargePoint chargePoint =
         new ChargePoint(
