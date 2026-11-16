@@ -225,7 +225,6 @@ class ChargingStationTest {
 
   @Test
   void keepsTheErrorReportedWithAStatusAndCarriesItsCodeInTheChange() {
-    ChargingStation station = ChargingStation.register("CP-1", DETAILS, T0);
     station.report(1, AVAILABLE, ConnectorError.NONE, T0);
     ConnectorError error =
         new ConnectorError(ConnectorErrorCode.GROUND_FAILURE, "Leak on phase 2", "E-42");
@@ -242,7 +241,6 @@ class ChargingStationTest {
 
   @Test
   void takesANewErrorForTheSameStatusWithoutAChange() {
-    ChargingStation station = ChargingStation.register("CP-1", DETAILS, T0);
     ConnectorError first = new ConnectorError(ConnectorErrorCode.GROUND_FAILURE, null, null);
     ConnectorError second = new ConnectorError(ConnectorErrorCode.OVER_VOLTAGE, null, null);
     station.report(1, FAULTED, first, T0);
