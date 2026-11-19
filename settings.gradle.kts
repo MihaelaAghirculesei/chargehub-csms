@@ -1,5 +1,12 @@
 pluginManagement {
     includeBuild("build-logic")
+    // Maven Central first: the Plugin Portal only redirects library requests there, and a failed
+    // redirect turns the Plugin Portal off for the whole build. The Plugin Portal stays for the
+    // plugins published nowhere else.
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
 }
 
 plugins {
