@@ -8,10 +8,14 @@ Charging Station Management System for [ChargeHub](https://github.com/MihaelaAgh
 
 ## Status
 
-A charge point can connect over OCPP 1.6J, is accepted on BootNotification, and its heartbeats are answered. Nothing is stored about it yet.
+A charge point connects over OCPP 1.6J and is registered when it boots. The central system stores every charging station with its connectors, keeps their status up to date and marks a station offline when it goes silent. Charging sessions are not handled yet.
 
-- **Done:** foundations (multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests) and the OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call. A charge point simulator that runs many charge points, each booting, sending heartbeats and reconnecting like a real one, and dropping connections or repeating calls on purpose.
-- **Next:** the simulator as a test fixture for the central system, then the charge point registry and live connector status.
+- **Done:**
+  - Foundations: multi-module build, CI, quality gates, local infrastructure, database baseline, architecture tests.
+  - OCPP 1.6J protocol layer: OCPP-J codec, validation against the official JSON schemas, the WebSocket endpoint, outbound calls matched with their answers, and an answer to every incoming call.
+  - Charge point simulator: many charge points that boot, send heartbeats, report connector status and reconnect like real ones. On purpose they can drop connections, repeat calls, report `Faulted` connectors and run with a skewed clock. The central system's integration tests use it as a fixture.
+  - Charging stations: registered on BootNotification and stored in PostgreSQL, with persistence kept apart from the domain model ([ADR 0014](docs/adr/0014-keep-jpa-entities-apart-from-the-domain.md)). Connector status follows the OCPP 1.6 transitions: a report that breaks them, or that is older than the last one, changes nothing and is counted and logged, while the charge point still gets its answer ([ADR 0013](docs/adr/0013-connector-status-never-refuses-a-report.md)). A station that stays silent for three heartbeat intervals is marked offline by a scheduled job that runs on one instance at a time ([ADR 0015](docs/adr/0015-postgresql-advisory-lock-for-scheduled-jobs.md)).
+- **Next:** idTag authorization and charging sessions: start and stop transactions, meter values, offline transactions.
 
 ## Planned scope
 
@@ -29,7 +33,7 @@ A modular monolith on Spring Modulith ([ADR 0002](docs/adr/0002-modular-monolith
 | Module | Purpose |
 |---|---|
 | `ocpp-protocol` | OCPP-J codec, official OCPP 1.6 JSON schemas and validation, outbound call matching, typed messages; free of Spring |
-| `csms-app` | Spring Boot application. Spring Modulith modules: `ocpp` (WebSocket endpoint, connections, call routing) and `station` (charge points) |
+| `csms-app` | Spring Boot application. Spring Modulith modules: `ocpp` (WebSocket endpoint, connections, call routing) and `station` (charging stations, connector status, offline detection) |
 | `charge-point-simulator` | Simulated charge points that speak OCPP only, through `ocpp-protocol` ([ADR 0010](docs/adr/0010-simulator-as-a-first-class-component.md)), one virtual thread each ([ADR 0011](docs/adr/0011-virtual-threads-for-simulated-charge-points.md)) |
 
 Module boundaries are enforced by tests: Spring Modulith verification and ArchUnit rules fail the build when one module reaches into another's internals.
