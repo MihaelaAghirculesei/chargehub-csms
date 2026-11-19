@@ -1,11 +1,20 @@
 pluginManagement {
     includeBuild("build-logic")
-    // Maven Central first: the Plugin Portal only redirects library requests there, and a failed
-    // redirect turns the Plugin Portal off for the whole build. The Plugin Portal stays for the
-    // plugins published nowhere else.
+    // Each group goes to the one repository that publishes it. Gradle moves to the next repository
+    // only on a 404, so a lookup in the wrong place is one more request that a rate limit can fail.
+    // A plugin from a new Plugin Portal group fails with "not found" until its group is added here.
+    // This block also resolves what build-logic depends on, such as the Error Prone plugin.
     repositories {
+        exclusiveContent {
+            forRepository { gradlePluginPortal() }
+            filter {
+                includeGroupAndSubgroups("org.gradle.toolchains")
+                includeGroup("net.ltgt.gradle")
+                includeGroup("org.sonarqube")
+                includeGroup("org.sonarsource.scanner.gradle")
+            }
+        }
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 
