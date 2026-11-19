@@ -1,16 +1,22 @@
-// Same order as the root pluginManagement, for the same reason. An included build has its own
-// settings: the kotlin-dsl plugin and its Kotlin libraries are resolved here, not in the root.
+// Same rule as the root settings: each group goes to the one repository that publishes it. An
+// included build has its own settings, so the root rules do not reach the kotlin-dsl plugin.
 pluginManagement {
     repositories {
+        exclusiveContent {
+            forRepository { gradlePluginPortal() }
+            filter { includeGroupAndSubgroups("org.gradle.kotlin") }
+        }
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
     repositories {
+        exclusiveContent {
+            forRepository { gradlePluginPortal() }
+            filter { includeGroup("net.ltgt.gradle") }
+        }
         mavenCentral()
-        gradlePluginPortal()
     }
     versionCatalogs {
         create("libs") {
