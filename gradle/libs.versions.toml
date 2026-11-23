@@ -23,7 +23,7 @@ spring-modulith = "2.1.2"
 archunit = "1.4.2"
 # Same version as the Spring Boot BOM; ocpp-protocol has no BOM to take it from.
 jspecify = "1.0.1"
-sonarqube = "7.5.0.8588"
+sonarqube = "7.6.0.18749"
 
 [libraries]
 # Versions come from the Spring Boot BOM.
