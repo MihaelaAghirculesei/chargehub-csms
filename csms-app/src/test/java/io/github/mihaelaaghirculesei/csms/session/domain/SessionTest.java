@@ -16,10 +16,10 @@ class SessionTest {
 
   private static final Instant STARTED_AT = Instant.parse("2026-11-24T10:00:00Z");
   private static final SessionStart START =
-      new SessionStart("CP-1", 1, "B4F62CEF", 1200, STARTED_AT);
+      new SessionStart("CP-1", 1, "B4F62CEF", 1200, STARTED_AT, STARTED_AT);
   private static final Instant STOPPED_AT = STARTED_AT.plusSeconds(3600);
   private static final SessionStop STOP =
-      new SessionStop(null, 9200, STOPPED_AT, StopReason.EV_DISCONNECTED);
+      new SessionStop(null, 9200, STOPPED_AT, StopReason.EV_DISCONNECTED, STOPPED_AT);
 
   @Test
   void anAcceptedTagOpensAnAuthorizedSession() {
@@ -56,16 +56,19 @@ class SessionTest {
   }
 
   @Test
-  void keepsTheStartTimeToTheMicrosecondAsTheDatabaseDoes() {
+  void keepsTheStartTimesToTheMicrosecondAsTheDatabaseDoes() {
     Instant precise = Instant.parse("2026-11-24T10:00:00.123456789Z");
+    Instant micros = Instant.parse("2026-11-24T10:00:00.123456Z");
 
-    assertThat(new SessionStart("CP-1", 1, "B4F62CEF", 0, precise).startedAt())
-        .isEqualTo(Instant.parse("2026-11-24T10:00:00.123456Z"));
+    SessionStart start = new SessionStart("CP-1", 1, "B4F62CEF", 0, precise, precise);
+
+    assertThat(start.startedAt()).isEqualTo(micros);
+    assertThat(start.receivedAt()).isEqualTo(micros);
   }
 
   @Test
   void keepsTheTagInUpperCase() {
-    assertThat(new SessionStart("CP-1", 1, "b4f62cef", 0, STARTED_AT).idTag())
+    assertThat(new SessionStart("CP-1", 1, "b4f62cef", 0, STARTED_AT, STARTED_AT).idTag())
         .isEqualTo("B4F62CEF");
   }
 
@@ -89,7 +92,9 @@ class SessionTest {
   @Test
   void aSessionIsClosedOnlyOnce() {
     Session closed = Session.open(7, START, Status.ACCEPTED, false).close(STOP);
-    SessionStop late = new SessionStop(null, 9300, STOPPED_AT.plusSeconds(1), StopReason.OTHER);
+    SessionStop late =
+        new SessionStop(
+            null, 9300, STOPPED_AT.plusSeconds(1), StopReason.OTHER, STOPPED_AT.plusSeconds(1));
 
     assertThatThrownBy(() -> closed.close(late)).isInstanceOf(IllegalStateException.class);
   }
@@ -104,7 +109,7 @@ class SessionTest {
 
   @Test
   void keepsTheStopTagInUpperCase() {
-    assertThat(new SessionStop("fleet-02", 0, STOPPED_AT, StopReason.LOCAL).idTag())
+    assertThat(new SessionStop("fleet-02", 0, STOPPED_AT, StopReason.LOCAL, STOPPED_AT).idTag())
         .isEqualTo("FLEET-02");
     assertThat(STOP.idTag()).isNull();
   }

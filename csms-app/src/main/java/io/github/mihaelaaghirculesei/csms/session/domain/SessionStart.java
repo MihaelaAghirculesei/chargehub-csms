@@ -10,9 +10,15 @@ import java.util.Locale;
  * @param idTag in upper case
  * @param meterStart the energy register of the connector in Wh
  * @param startedAt by the clock of the charge point, to the microsecond
+ * @param receivedAt by the clock of the central system, to the microsecond
  */
 public record SessionStart(
-    String stationId, int connectorId, String idTag, long meterStart, Instant startedAt) {
+    String stationId,
+    int connectorId,
+    String idTag,
+    long meterStart,
+    Instant startedAt,
+    Instant receivedAt) {
 
   // OCPP 1.6 compares id tags without regard to case; one stored form keeps the check for a tag
   // that is already charging a plain equality.
@@ -21,5 +27,6 @@ public record SessionStart(
     // PostgreSQL keeps microseconds. Cut here, a start read back equals the start received, so a
     // repeated start is found whatever precision the charge point sends.
     startedAt = startedAt.truncatedTo(ChronoUnit.MICROS);
+    receivedAt = receivedAt.truncatedTo(ChronoUnit.MICROS);
   }
 }

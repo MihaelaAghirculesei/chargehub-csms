@@ -6,6 +6,7 @@ import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.ocpp.message.MeterValuesRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
+import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,10 +24,12 @@ class MeterValuesHandler implements ActionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(MeterValuesHandler.class);
 
+  private final Clock clock;
   private final SessionRepository sessions;
   private final MeterReadingRepository readings;
 
-  MeterValuesHandler(SessionRepository sessions, MeterReadingRepository readings) {
+  MeterValuesHandler(Clock clock, SessionRepository sessions, MeterReadingRepository readings) {
+    this.clock = clock;
     this.sessions = sessions;
     this.readings = readings;
   }
@@ -59,7 +62,7 @@ class MeterValuesHandler implements ActionHandler {
           .log(
               "Ignoring readings from {} for unknown transaction {}", chargePointId, transactionId);
     } else {
-      readings.addAll(transactionId, MeterReadings.from(values.meterValue()));
+      readings.addAll(transactionId, MeterReadings.from(values.meterValue(), clock.instant()));
     }
     return JsonNodeFactory.instance.objectNode();
   }

@@ -37,8 +37,9 @@ class JdbcMeterReadingRepositoryTest {
     readings.addAll(
         transactionId,
         List.of(
-            MeterReading.of(T0, "1500", null, null, null, null, null, null),
+            MeterReading.of(T0, T0, "1500", null, null, null, null, null, null),
             MeterReading.of(
+                T0.plusSeconds(60),
                 T0.plusSeconds(60),
                 "230.4",
                 "Voltage",
@@ -94,9 +95,9 @@ class JdbcMeterReadingRepositoryTest {
       readings.addAll(
           transactionId,
           List.of(
-              MeterReading.of(T0, "1500", null, null, null, null, null, null),
-              MeterReading.of(T0, "16.2", "Current.Import", "A", "L1", null, null, null),
-              MeterReading.of(T0, "16.1", "Current.Import", "A", "L2", null, null, null)));
+              MeterReading.of(T0, T0, "1500", null, null, null, null, null, null),
+              MeterReading.of(T0, T0, "16.2", "Current.Import", "A", "L1", null, null, null),
+              MeterReading.of(T0, T0, "16.1", "Current.Import", "A", "L2", null, null, null)));
 
       assertThat(
               jdbc.sql("select count(*) from meter_value_statement where transaction_id = ?")
@@ -121,15 +122,24 @@ class JdbcMeterReadingRepositoryTest {
     int transactionId = session("METER-ONCE");
     List<MeterReading> message =
         List.of(
-            MeterReading.of(T0, "1500", null, null, null, null, null, null),
-            MeterReading.of(T0, "16.2", "Current.Import", "A", "L1", null, null, null));
+            MeterReading.of(T0, T0, "1500", null, null, null, null, null, null),
+            MeterReading.of(T0, T0, "16.2", "Current.Import", "A", "L1", null, null, null));
 
     readings.addAll(transactionId, message);
     readings.addAll(
         transactionId,
         List.of(
-            MeterReading.of(T0, "1500", null, null, null, null, null, null),
-            MeterReading.of(T0.plusSeconds(60), "1600", null, null, null, null, null, null)));
+            MeterReading.of(T0, T0, "1500", null, null, null, null, null, null),
+            MeterReading.of(
+                T0.plusSeconds(60),
+                T0.plusSeconds(60),
+                "1600",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null)));
     readings.addAll(transactionId, message);
 
     assertThat(rowsOf(transactionId))
@@ -140,7 +150,7 @@ class JdbcMeterReadingRepositoryTest {
   @Test
   void refusesReadingsForAnUnknownSession() {
     List<MeterReading> orphan =
-        List.of(MeterReading.of(T0, "1", null, null, null, null, null, null));
+        List.of(MeterReading.of(T0, T0, "1", null, null, null, null, null, null));
 
     assertThatThrownBy(() -> readings.addAll(-1, orphan))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -150,7 +160,7 @@ class JdbcMeterReadingRepositoryTest {
     Session session =
         Session.open(
             sessions.nextTransactionId(),
-            new SessionStart("CP-METER", 1, idTag, 0, T0),
+            new SessionStart("CP-METER", 1, idTag, 0, T0, T0),
             Status.INVALID,
             false);
     sessions.save(session);

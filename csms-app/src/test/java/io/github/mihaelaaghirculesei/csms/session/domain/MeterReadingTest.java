@@ -11,9 +11,10 @@ class MeterReadingTest {
 
   @Test
   void aBareValueIsAnEnergyRegisterInWh() {
-    assertThat(MeterReading.of(SAMPLED_AT, "1500", null, null, null, null, null, null))
+    assertThat(MeterReading.of(SAMPLED_AT, SAMPLED_AT, "1500", null, null, null, null, null, null))
         .isEqualTo(
             new MeterReading(
+                SAMPLED_AT,
                 SAMPLED_AT,
                 "1500",
                 "Energy.Active.Import.Register",
@@ -28,9 +29,25 @@ class MeterReadingTest {
   void keepsEveryFieldTheChargePointSent() {
     assertThat(
             MeterReading.of(
-                SAMPLED_AT, "230.4", "Voltage", "V", "L1-N", "Sample.Clock", "Inlet", "Raw"))
+                SAMPLED_AT,
+                SAMPLED_AT,
+                "230.4",
+                "Voltage",
+                "V",
+                "L1-N",
+                "Sample.Clock",
+                "Inlet",
+                "Raw"))
         .isEqualTo(
             new MeterReading(
-                SAMPLED_AT, "230.4", "Voltage", "V", "L1-N", "Sample.Clock", "Inlet", "Raw"));
+                SAMPLED_AT,
+                SAMPLED_AT,
+                "230.4",
+                "Voltage",
+                "V",
+                "L1-N",
+                "Sample.Clock",
+                "Inlet",
+                "Raw"));
   }
 }

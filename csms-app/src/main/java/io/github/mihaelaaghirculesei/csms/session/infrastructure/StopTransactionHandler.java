@@ -16,6 +16,8 @@ import io.github.mihaelaaghirculesei.ocpp.message.Reason;
 import io.github.mihaelaaghirculesei.ocpp.message.StopTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StopTransactionResponse;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -39,16 +41,19 @@ class StopTransactionHandler implements ActionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(StopTransactionHandler.class);
 
+  private final Clock clock;
   private final IdTagAuthorization authorization;
   private final SessionRepository sessions;
   private final MeterReadingRepository readings;
   private final ApplicationEventPublisher events;
 
   StopTransactionHandler(
+      Clock clock,
       IdTagAuthorization authorization,
       SessionRepository sessions,
       MeterReadingRepository readings,
       ApplicationEventPublisher events) {
+    this.clock = clock;
     this.authorization = authorization;
     this.sessions = sessions;
     this.readings = readings;
@@ -64,6 +69,7 @@ class StopTransactionHandler implements ActionHandler {
   @Transactional
   public ObjectNode handle(String chargePointId, ObjectNode request) {
     StopTransactionRequest stopped = OcppMessages.read(request, StopTransactionRequest.class);
+    Instant receivedAt = clock.instant();
     int transactionId = stopped.transactionId();
     // A session of another charge point is treated as unknown, so that no charge point can end
     // the sessions of another one.
@@ -80,12 +86,12 @@ class StopTransactionHandler implements ActionHandler {
           .addKeyValue(TRANSACTION_ID, transactionId)
           .log("Ignoring a second stop from {} for transaction {}", chargePointId, transactionId);
     } else {
-      Session session = found.get().close(toDomain(stopped));
+      Session session = found.get().close(toDomain(stopped, receivedAt));
       sessions.save(session);
       // Only with the first stop: a repeated stop carries the same readings again.
       List<MeterValue> transactionData = stopped.transactionData();
       if (transactionData != null) {
-        readings.addAll(transactionId, MeterReadings.from(transactionData));
+        readings.addAll(transactionId, MeterReadings.from(transactionData, receivedAt));
       }
       events.publishEvent(session.completed());
       log.atInfo()
@@ -105,13 +111,14 @@ class StopTransactionHandler implements ActionHandler {
     return IdTagInfos.of(TagStatus.of(tag.status()), tag);
   }
 
-  private static SessionStop toDomain(StopTransactionRequest stopped) {
+  private static SessionStop toDomain(StopTransactionRequest stopped, Instant receivedAt) {
     Reason reason = stopped.reason();
     return new SessionStop(
         stopped.idTag(),
         stopped.meterStop(),
         stopped.timestamp(),
-        reason == null ? StopReason.LOCAL : toDomain(reason));
+        reason == null ? StopReason.LOCAL : toDomain(reason),
+        receivedAt);
   }
 
   private static StopReason toDomain(Reason reason) {

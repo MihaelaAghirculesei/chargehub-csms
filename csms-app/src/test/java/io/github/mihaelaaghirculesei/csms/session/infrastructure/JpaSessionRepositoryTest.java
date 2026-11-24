@@ -91,7 +91,8 @@ class JpaSessionRepositoryTest {
 
     assertThat(sessions.findByStart(session.start())).contains(session);
     assertThat(
-            sessions.findByStart(new SessionStart("CP-REPO", 2, "REPO-REPEATED", 1201, STARTED_AT)))
+            sessions.findByStart(
+                new SessionStart("CP-REPO", 2, "REPO-REPEATED", 1201, STARTED_AT, STARTED_AT)))
         .isEmpty();
   }
 
@@ -119,7 +120,8 @@ class JpaSessionRepositoryTest {
     Session session = open("REPO-STOPPED", Status.ACCEPTED, 1200);
     sessions.save(session);
     Session stopped =
-        session.close(new SessionStop("REPO-FLEET", 9200, STOPPED_AT, StopReason.REMOTE));
+        session.close(
+            new SessionStop("REPO-FLEET", 9200, STOPPED_AT, StopReason.REMOTE, STOPPED_AT));
 
     sessions.save(stopped);
 
@@ -135,7 +137,7 @@ class JpaSessionRepositoryTest {
   void aStoppedTagMayChargeAgain() {
     Session first = open("REPO-AGAIN", Status.ACCEPTED, 0);
     sessions.save(first);
-    sessions.save(first.close(new SessionStop(null, 10, STOPPED_AT, StopReason.LOCAL)));
+    sessions.save(first.close(new SessionStop(null, 10, STOPPED_AT, StopReason.LOCAL, STOPPED_AT)));
 
     assertThat(sessions.isCharging("REPO-AGAIN")).isFalse();
     sessions.save(open("REPO-AGAIN", Status.ACCEPTED, 10));
@@ -157,7 +159,7 @@ class JpaSessionRepositoryTest {
   private Session open(String idTag, Status tagCheck, long meterStart) {
     return Session.open(
         sessions.nextTransactionId(),
-        new SessionStart("CP-REPO", 2, idTag, meterStart, STARTED_AT),
+        new SessionStart("CP-REPO", 2, idTag, meterStart, STARTED_AT, STARTED_AT),
         tagCheck,
         false);
   }
