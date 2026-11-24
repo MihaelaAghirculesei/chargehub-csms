@@ -196,6 +196,53 @@ class OcppMessagesTest {
     assertThat(validator.validate("StartTransaction", RESPONSE, payload)).isEmpty();
   }
 
+  @Test
+  void readsAStopTransactionWithOnlyTheRequiredFields() {
+    ObjectNode payload =
+        json(
+            "{\"transactionId\":42,\"meterStop\":3000000000,"
+                + "\"timestamp\":\"2013-02-01T20:53:32.486Z\"}");
+
+    assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, StopTransactionRequest.class))
+        .isEqualTo(new StopTransactionRequest(null, 3_000_000_000L, TIME, 42, null));
+  }
+
+  @Test
+  void readsAStopTransactionWithTransactionData() {
+    ObjectNode payload =
+        json(
+            "{\"idTag\":\"B4F62CEF\",\"transactionId\":42,\"meterStop\":1500,"
+                + "\"timestamp\":\"2013-02-01T20:53:32.486Z\",\"reason\":\"EVDisconnected\","
+                + "\"transactionData\":[{\"timestamp\":\"2013-02-01T20:53:32.486Z\","
+                + "\"sampledValue\":[{\"value\":\"1500\"}]}]}");
+
+    assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, StopTransactionRequest.class))
+        .isEqualTo(new StopTransactionRequest("B4F62CEF", 1500, TIME, 42, Reason.EV_DISCONNECTED));
+  }
+
+  @ParameterizedTest
+  @EnumSource(Reason.class)
+  void writesEveryReasonAsTheSchemaNamesIt(Reason reason) {
+    ObjectNode payload = OcppMessages.write(new StopTransactionRequest(null, 0, TIME, 1, reason));
+
+    assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
+  }
+
+  @Test
+  void writesAStopTransactionResponseWithAndWithoutTagInfo() {
+    ObjectNode withTag =
+        OcppMessages.write(
+            new StopTransactionResponse(new IdTagInfo(AuthorizationStatus.ACCEPTED, null, null)));
+    ObjectNode withoutTag = OcppMessages.write(new StopTransactionResponse(null));
+
+    assertThat(withTag).isEqualTo(json("{\"idTagInfo\":{\"status\":\"Accepted\"}}"));
+    assertThat(withoutTag).isEqualTo(json("{}"));
+    assertThat(validator.validate("StopTransaction", RESPONSE, withTag)).isEmpty();
+    assertThat(validator.validate("StopTransaction", RESPONSE, withoutTag)).isEmpty();
+  }
+
   private static ObjectNode statusNotification(
       ChargePointStatus status, ChargePointErrorCode errorCode) {
     return OcppMessages.write(
