@@ -1,14 +1,18 @@
 package io.github.mihaelaaghirculesei.csms.session.domain;
 
 import io.github.mihaelaaghirculesei.csms.authorization.Authorization;
+import io.github.mihaelaaghirculesei.csms.session.SessionCompleted;
 import io.github.mihaelaaghirculesei.csms.session.SessionStarted;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A charging session.
  *
  * @param transactionId chosen by the central system before it answers the charge point
+ * @param stop null while the session is open
  */
-public record Session(int transactionId, SessionStart start, TagStatus tagStatus) {
+public record Session(
+    int transactionId, SessionStart start, TagStatus tagStatus, @Nullable SessionStop stop) {
 
   /**
    * Opens a session whatever the tag status. OCPP 1.6 asks the central system to store a refused
@@ -29,11 +33,32 @@ public record Session(int transactionId, SessionStart start, TagStatus tagStatus
           case EXPIRED -> TagStatus.EXPIRED;
           case INVALID -> TagStatus.INVALID;
         };
-    return new Session(transactionId, start, tagStatus);
+    return new Session(transactionId, start, tagStatus, null);
   }
 
   public boolean authorized() {
     return tagStatus == TagStatus.ACCEPTED;
+  }
+
+  public boolean isOpen() {
+    return stop == null;
+  }
+
+  /** Only the charge point that started a session may stop it. */
+  public boolean startedBy(String stationId) {
+    return start.stationId().equals(stationId);
+  }
+
+  /**
+   * Closes the session.
+   *
+   * @throws IllegalStateException when it is already stopped: the first stop stays the true one
+   */
+  public Session close(SessionStop stop) {
+    if (!isOpen()) {
+      throw new IllegalStateException("Transaction " + transactionId + " is already stopped");
+    }
+    return new Session(transactionId, start, tagStatus, stop);
   }
 
   public SessionStarted started() {
@@ -44,5 +69,28 @@ public record Session(int transactionId, SessionStart start, TagStatus tagStatus
         start.idTag(),
         authorized(),
         start.startedAt());
+  }
+
+  /**
+   * The event for a stopped session.
+   *
+   * @throws IllegalStateException while the session is open
+   */
+  public SessionCompleted completed() {
+    SessionStop stopped = stop;
+    if (stopped == null) {
+      throw new IllegalStateException("Transaction " + transactionId + " is still open");
+    }
+    return new SessionCompleted(
+        transactionId,
+        start.stationId(),
+        start.connectorId(),
+        start.idTag(),
+        authorized(),
+        start.meterStart(),
+        stopped.meterStop(),
+        start.startedAt(),
+        stopped.stoppedAt(),
+        stopped.reason());
   }
 }
