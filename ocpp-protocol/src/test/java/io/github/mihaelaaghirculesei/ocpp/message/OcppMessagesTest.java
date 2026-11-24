@@ -172,6 +172,30 @@ class OcppMessagesTest {
     assertThat(validator.validate("Authorize", RESPONSE, payload)).isEmpty();
   }
 
+  @Test
+  void readsAStartTransactionRequest() {
+    ObjectNode payload =
+        json(
+            "{\"connectorId\":1,\"idTag\":\"B4F62CEF\",\"meterStart\":3000000000,"
+                + "\"timestamp\":\"2013-02-01T20:53:32.486Z\"}");
+
+    assertThat(validator.validate("StartTransaction", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, StartTransactionRequest.class))
+        .isEqualTo(new StartTransactionRequest(1, "B4F62CEF", 3_000_000_000L, null, TIME));
+  }
+
+  @Test
+  void writesAValidStartTransactionResponse() {
+    ObjectNode payload =
+        OcppMessages.write(
+            new StartTransactionResponse(
+                new IdTagInfo(AuthorizationStatus.CONCURRENT_TX, null, null), 42));
+
+    assertThat(payload)
+        .isEqualTo(json("{\"idTagInfo\":{\"status\":\"ConcurrentTx\"},\"transactionId\":42}"));
+    assertThat(validator.validate("StartTransaction", RESPONSE, payload)).isEmpty();
+  }
+
   private static ObjectNode statusNotification(
       ChargePointStatus status, ChargePointErrorCode errorCode) {
     return OcppMessages.write(
