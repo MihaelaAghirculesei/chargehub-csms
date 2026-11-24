@@ -38,6 +38,8 @@ class SessionEntity {
   @Enumerated(EnumType.STRING)
   private TagStatus tagStatus;
 
+  private boolean clockGapFlagged;
+
   // Hibernate reads a stop whose columns are all null as no stop, which is an open session.
   @Embedded private @Nullable StopColumns stop;
 
@@ -63,8 +65,9 @@ class SessionEntity {
     copy(session);
   }
 
-  /** Takes the stop of the session; the start never changes once stored. */
+  /** Takes what a stop changes; the start never changes once stored. */
   void copy(Session session) {
+    clockGapFlagged = session.clockGapFlagged();
     SessionStop stopped = session.stop();
     stop = stopped == null ? null : StopColumns.of(stopped);
   }
@@ -75,6 +78,7 @@ class SessionEntity {
         transactionId,
         new SessionStart(stationId, connectorId, idTag, meterStart, startedAt, startReceivedAt),
         tagStatus,
+        clockGapFlagged,
         stopped == null ? null : stopped.toDomain());
   }
 

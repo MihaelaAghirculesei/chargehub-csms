@@ -9,10 +9,16 @@ import org.jspecify.annotations.Nullable;
  * A charging session.
  *
  * @param transactionId chosen by the central system before it answers the charge point
+ * @param clockGapFlagged whether the start or the stop came with a station time far from the
+ *     receive time, see {@link ClockGap}
  * @param stop null while the session is open
  */
 public record Session(
-    int transactionId, SessionStart start, TagStatus tagStatus, @Nullable SessionStop stop) {
+    int transactionId,
+    SessionStart start,
+    TagStatus tagStatus,
+    boolean clockGapFlagged,
+    @Nullable SessionStop stop) {
 
   /**
    * Opens a session whatever the tag status. OCPP 1.6 asks the central system to store a refused
@@ -20,17 +26,19 @@ public record Session(
    * a known transaction.
    *
    * @param tagAlreadyCharging whether the tag has another open session that was accepted
+   * @param startGap how the station time of the start compares with its receive time
    */
   public static Session open(
       int transactionId,
       SessionStart start,
       Authorization.Status tagCheck,
-      boolean tagAlreadyCharging) {
+      boolean tagAlreadyCharging,
+      ClockGap startGap) {
     TagStatus tagStatus = TagStatus.of(tagCheck);
     if (tagStatus == TagStatus.ACCEPTED && tagAlreadyCharging) {
       tagStatus = TagStatus.CONCURRENT_TX;
     }
-    return new Session(transactionId, start, tagStatus, null);
+    return new Session(transactionId, start, tagStatus, startGap.flagged(), null);
   }
 
   public boolean authorized() {
@@ -49,13 +57,14 @@ public record Session(
   /**
    * Closes the session.
    *
+   * @param stopGap how the station time of the stop compares with its receive time
    * @throws IllegalStateException when it is already stopped: the first stop stays the true one
    */
-  public Session close(SessionStop stop) {
+  public Session close(SessionStop stop, ClockGap stopGap) {
     if (!isOpen()) {
       throw new IllegalStateException("Transaction " + transactionId + " is already stopped");
     }
-    return new Session(transactionId, start, tagStatus, stop);
+    return new Session(transactionId, start, tagStatus, clockGapFlagged || stopGap.flagged(), stop);
   }
 
   public SessionStarted started() {

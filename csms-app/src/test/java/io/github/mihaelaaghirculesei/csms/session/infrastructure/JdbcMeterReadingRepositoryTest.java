@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.authorization.Authorization.Status;
+import io.github.mihaelaaghirculesei.csms.session.domain.ClockGap;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReading;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReadingRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
@@ -162,7 +163,8 @@ class JdbcMeterReadingRepositoryTest {
             sessions.nextTransactionId(),
             new SessionStart("CP-METER", 1, idTag, 0, T0, T0),
             Status.INVALID,
-            false);
+            false,
+            ClockGap.ON_TIME);
     sessions.save(session);
     return session.transactionId();
   }
