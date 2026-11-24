@@ -6,9 +6,6 @@ import io.github.mihaelaaghirculesei.csms.ocpp.ActionHandler;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
-import io.github.mihaelaaghirculesei.csms.session.domain.TagStatus;
-import io.github.mihaelaaghirculesei.ocpp.message.AuthorizationStatus;
-import io.github.mihaelaaghirculesei.ocpp.message.IdTagInfo;
 import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionResponse;
@@ -77,18 +74,7 @@ class StartTransactionHandler implements ActionHandler {
             start.connectorId(),
             session.tagStatus());
     return OcppMessages.write(
-        new StartTransactionResponse(idTagInfo(session.tagStatus(), tag), session.transactionId()));
-  }
-
-  private static IdTagInfo idTagInfo(TagStatus status, Authorization tag) {
-    AuthorizationStatus answer =
-        switch (status) {
-          case ACCEPTED -> AuthorizationStatus.ACCEPTED;
-          case BLOCKED -> AuthorizationStatus.BLOCKED;
-          case EXPIRED -> AuthorizationStatus.EXPIRED;
-          case INVALID -> AuthorizationStatus.INVALID;
-          case CONCURRENT_TX -> AuthorizationStatus.CONCURRENT_TX;
-        };
-    return new IdTagInfo(answer, tag.expiryDate(), tag.parentIdTag());
+        new StartTransactionResponse(
+            IdTagInfos.of(session.tagStatus(), tag), session.transactionId()));
   }
 }

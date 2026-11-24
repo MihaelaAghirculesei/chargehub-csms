@@ -26,13 +26,10 @@ public record Session(
       SessionStart start,
       Authorization.Status tagCheck,
       boolean tagAlreadyCharging) {
-    TagStatus tagStatus =
-        switch (tagCheck) {
-          case ACCEPTED -> tagAlreadyCharging ? TagStatus.CONCURRENT_TX : TagStatus.ACCEPTED;
-          case BLOCKED -> TagStatus.BLOCKED;
-          case EXPIRED -> TagStatus.EXPIRED;
-          case INVALID -> TagStatus.INVALID;
-        };
+    TagStatus tagStatus = TagStatus.of(tagCheck);
+    if (tagStatus == TagStatus.ACCEPTED && tagAlreadyCharging) {
+      tagStatus = TagStatus.CONCURRENT_TX;
+    }
     return new Session(transactionId, start, tagStatus, null);
   }
 
