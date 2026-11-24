@@ -117,6 +117,27 @@ class JdbcMeterReadingRepositoryTest {
   }
 
   @Test
+  void storesEachReadingOnce() {
+    int transactionId = session("METER-ONCE");
+    List<MeterReading> message =
+        List.of(
+            MeterReading.of(T0, "1500", null, null, null, null, null, null),
+            MeterReading.of(T0, "16.2", "Current.Import", "A", "L1", null, null, null));
+
+    readings.addAll(transactionId, message);
+    readings.addAll(
+        transactionId,
+        List.of(
+            MeterReading.of(T0, "1500", null, null, null, null, null, null),
+            MeterReading.of(T0.plusSeconds(60), "1600", null, null, null, null, null, null)));
+    readings.addAll(transactionId, message);
+
+    assertThat(rowsOf(transactionId))
+        .extracting(row -> row.get("value"))
+        .containsExactly("1500", "16.2", "1600");
+  }
+
+  @Test
   void refusesReadingsForAnUnknownSession() {
     List<MeterReading> orphan =
         List.of(MeterReading.of(T0, "1", null, null, null, null, null, null));

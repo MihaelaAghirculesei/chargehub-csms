@@ -17,6 +17,7 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
 
   // One statement for all readings of a message: unnest turns the arrays back into rows, so the
   // insert is one round trip whatever the number of readings, and it is atomic on its own.
+  // A reading already stored is skipped, so a resent message changes nothing, see docs/adr/0016.
   // Times travel as ISO-8601 text, which PostgreSQL reads as UTC instants without driver support
   // for arrays of dates.
   private static final String INSERT =
@@ -26,6 +27,7 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
       select ?, r.*
       from unnest(?::timestamptz[], ?::text[], ?::text[], ?::text[], ?::text[], ?::text[],
                   ?::text[], ?::text[]) as r
+      on conflict (transaction_id, sampled_at, measurand, phase, location, context) do nothing
       """;
 
   private final JdbcClient jdbc;
