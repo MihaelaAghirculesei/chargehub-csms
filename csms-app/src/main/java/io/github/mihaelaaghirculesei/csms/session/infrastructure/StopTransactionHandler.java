@@ -4,16 +4,19 @@ import io.github.mihaelaaghirculesei.csms.authorization.Authorization;
 import io.github.mihaelaaghirculesei.csms.authorization.IdTagAuthorization;
 import io.github.mihaelaaghirculesei.csms.ocpp.ActionHandler;
 import io.github.mihaelaaghirculesei.csms.session.StopReason;
+import io.github.mihaelaaghirculesei.csms.session.domain.MeterReadingRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStop;
 import io.github.mihaelaaghirculesei.csms.session.domain.TagStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.IdTagInfo;
+import io.github.mihaelaaghirculesei.ocpp.message.MeterValue;
 import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.Reason;
 import io.github.mihaelaaghirculesei.ocpp.message.StopTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StopTransactionResponse;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
+import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -38,14 +41,17 @@ class StopTransactionHandler implements ActionHandler {
 
   private final IdTagAuthorization authorization;
   private final SessionRepository sessions;
+  private final MeterReadingRepository readings;
   private final ApplicationEventPublisher events;
 
   StopTransactionHandler(
       IdTagAuthorization authorization,
       SessionRepository sessions,
+      MeterReadingRepository readings,
       ApplicationEventPublisher events) {
     this.authorization = authorization;
     this.sessions = sessions;
+    this.readings = readings;
     this.events = events;
   }
 
@@ -76,6 +82,11 @@ class StopTransactionHandler implements ActionHandler {
     } else {
       Session session = found.get().close(toDomain(stopped));
       sessions.save(session);
+      // Only with the first stop: a repeated stop carries the same readings again.
+      List<MeterValue> transactionData = stopped.transactionData();
+      if (transactionData != null) {
+        readings.addAll(transactionId, MeterReadings.from(transactionData));
+      }
       events.publishEvent(session.completed());
       log.atInfo()
           .addKeyValue(CHARGE_POINT_ID, chargePointId)
