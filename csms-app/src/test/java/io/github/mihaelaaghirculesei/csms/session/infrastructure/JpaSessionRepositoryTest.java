@@ -85,6 +85,28 @@ class JpaSessionRepositoryTest {
   }
 
   @Test
+  void findsTheSessionOfAStartReceivedBefore() {
+    Session session = open("REPO-REPEATED", Status.ACCEPTED, 1200);
+    sessions.save(session);
+
+    assertThat(sessions.findByStart(session.start())).contains(session);
+    assertThat(
+            sessions.findByStart(new SessionStart("CP-REPO", 2, "REPO-REPEATED", 1201, STARTED_AT)))
+        .isEmpty();
+  }
+
+  @Test
+  void refusesToStoreOneStartTwice() {
+    Session session = open("REPO-START-ONCE", Status.BLOCKED, 0);
+    sessions.save(session);
+    Session copy =
+        Session.open(sessions.nextTransactionId(), session.start(), Status.BLOCKED, false);
+
+    assertThatThrownBy(() -> sessions.save(copy))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
   void readsBackAnOpenSession() {
     Session session = open("REPO-OPEN", Status.ACCEPTED, 1200);
     sessions.save(session);

@@ -56,6 +56,14 @@ class SessionTest {
   }
 
   @Test
+  void keepsTheStartTimeToTheMicrosecondAsTheDatabaseDoes() {
+    Instant precise = Instant.parse("2026-11-24T10:00:00.123456789Z");
+
+    assertThat(new SessionStart("CP-1", 1, "B4F62CEF", 0, precise).startedAt())
+        .isEqualTo(Instant.parse("2026-11-24T10:00:00.123456Z"));
+  }
+
+  @Test
   void keepsTheTagInUpperCase() {
     assertThat(new SessionStart("CP-1", 1, "b4f62cef", 0, STARTED_AT).idTag())
         .isEqualTo("B4F62CEF");
