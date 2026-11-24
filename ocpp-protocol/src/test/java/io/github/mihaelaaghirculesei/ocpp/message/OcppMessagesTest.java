@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mihaelaaghirculesei.ocpp.payload.PayloadValidator;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -205,7 +206,7 @@ class OcppMessagesTest {
 
     assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
     assertThat(OcppMessages.read(payload, StopTransactionRequest.class))
-        .isEqualTo(new StopTransactionRequest(null, 3_000_000_000L, TIME, 42, null));
+        .isEqualTo(new StopTransactionRequest(null, 3_000_000_000L, TIME, 42, null, null));
   }
 
   @Test
@@ -219,13 +220,24 @@ class OcppMessagesTest {
 
     assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
     assertThat(OcppMessages.read(payload, StopTransactionRequest.class))
-        .isEqualTo(new StopTransactionRequest("B4F62CEF", 1500, TIME, 42, Reason.EV_DISCONNECTED));
+        .isEqualTo(
+            new StopTransactionRequest(
+                "B4F62CEF",
+                1500,
+                TIME,
+                42,
+                Reason.EV_DISCONNECTED,
+                List.of(
+                    new MeterValue(
+                        TIME,
+                        List.of(new SampledValue("1500", null, null, null, null, null, null))))));
   }
 
   @ParameterizedTest
   @EnumSource(Reason.class)
   void writesEveryReasonAsTheSchemaNamesIt(Reason reason) {
-    ObjectNode payload = OcppMessages.write(new StopTransactionRequest(null, 0, TIME, 1, reason));
+    ObjectNode payload =
+        OcppMessages.write(new StopTransactionRequest(null, 0, TIME, 1, reason, null));
 
     assertThat(validator.validate("StopTransaction", REQUEST, payload)).isEmpty();
   }
@@ -241,6 +253,54 @@ class OcppMessagesTest {
     assertThat(withoutTag).isEqualTo(json("{}"));
     assertThat(validator.validate("StopTransaction", RESPONSE, withTag)).isEmpty();
     assertThat(validator.validate("StopTransaction", RESPONSE, withoutTag)).isEmpty();
+  }
+
+  @Test
+  void readsMeterValuesWithEveryFieldOfASample() {
+    ObjectNode payload =
+        json(
+            "{\"connectorId\":1,\"transactionId\":42,\"meterValue\":[{"
+                + "\"timestamp\":\"2013-02-01T20:53:32.486Z\",\"sampledValue\":["
+                + "{\"value\":\"230.4\",\"context\":\"Sample.Periodic\",\"format\":\"Raw\","
+                + "\"measurand\":\"Voltage\",\"phase\":\"L1-N\",\"location\":\"Outlet\","
+                + "\"unit\":\"V\"},{\"value\":\"1500\"}]}]}");
+
+    assertThat(validator.validate("MeterValues", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, MeterValuesRequest.class))
+        .isEqualTo(
+            new MeterValuesRequest(
+                1,
+                42,
+                List.of(
+                    new MeterValue(
+                        TIME,
+                        List.of(
+                            new SampledValue(
+                                "230.4",
+                                "Sample.Periodic",
+                                "Raw",
+                                "Voltage",
+                                "L1-N",
+                                "Outlet",
+                                "V"),
+                            new SampledValue("1500", null, null, null, null, null, null))))));
+  }
+
+  @Test
+  void readsMeterValuesOutsideATransaction() {
+    ObjectNode payload =
+        json(
+            "{\"connectorId\":0,\"meterValue\":[{\"timestamp\":\"2013-02-01T20:53:32.486Z\","
+                + "\"sampledValue\":[{\"value\":\"12\",\"measurand\":\"Temperature\"}]}]}");
+
+    assertThat(validator.validate("MeterValues", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, MeterValuesRequest.class).transactionId()).isNull();
+  }
+
+  @Test
+  void anEmptyPayloadIsAValidMeterValuesResponse() {
+    assertThat(validator.validate("MeterValues", RESPONSE, JsonNodeFactory.instance.objectNode()))
+        .isEmpty();
   }
 
   private static ObjectNode statusNotification(

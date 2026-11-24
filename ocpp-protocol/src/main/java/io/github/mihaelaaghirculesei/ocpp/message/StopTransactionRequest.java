@@ -1,7 +1,7 @@
 package io.github.mihaelaaghirculesei.ocpp.message;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -11,13 +11,12 @@ import org.jspecify.annotations.Nullable;
  * @param meterStop the energy register of the connector in Wh
  * @param timestamp when the transaction stopped, by the clock of the charge point
  * @param reason missing means {@link Reason#LOCAL}, as the specification says
+ * @param transactionData readings of the transaction the charge point did not send before
  */
-// The samples in transactionData are read once meter values are stored; the schema already
-// checked them.
-@JsonIgnoreProperties("transactionData")
 public record StopTransactionRequest(
     @Nullable String idTag,
     long meterStop,
     Instant timestamp,
     int transactionId,
-    @Nullable Reason reason) {}
+    @Nullable Reason reason,
+    @Nullable List<MeterValue> transactionData) {}
