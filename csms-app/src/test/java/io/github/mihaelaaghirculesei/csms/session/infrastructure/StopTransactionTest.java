@@ -8,9 +8,16 @@ import io.github.mihaelaaghirculesei.csms.session.SessionCompleted;
 import io.github.mihaelaaghirculesei.csms.session.StopReason;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,10 +25,11 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestComponent;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.event.TransactionalEventListener;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /** StopTransaction from the WebSocket frame to the database and back. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -35,6 +43,7 @@ class StopTransactionTest {
   @LocalServerPort private int port;
   @Autowired private JdbcClient jdbc;
   @Autowired private RecordedStops stops;
+  @Autowired private StopTransactionHandler handler;
 
   @Test
   void closesTheSessionAndPublishesItsCompletion() throws Exception {
@@ -157,6 +166,53 @@ class StopTransactionTest {
     }
   }
 
+  /**
+   * Two stops handled at the same moment. The version of the session lets one commit; the other
+   * either fails, and its charge point resends it, or sees the session already stopped.
+   */
+  @Test
+  void storesOneStopForTwoStopsHandledAtTheSameMoment() throws Exception {
+    insertTag("STOP-RACE", "ACCEPTED");
+    int transactionId;
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-STOP-RACE")) {
+      transactionId = start(chargePoint, "STOP-RACE");
+    }
+    CountDownLatch ready = new CountDownLatch(2);
+    List<Callable<ObjectNode>> stopsAtOnce = new ArrayList<>();
+    for (String reason : List.of("Remote", "EVDisconnected")) {
+      ObjectNode request =
+          (ObjectNode)
+              JsonMapper.shared()
+                  .readTree(
+                      stop(transactionId, ",\"reason\":\"" + reason + "\"")
+                          .substring("\"StopTransaction\",".length()));
+      stopsAtOnce.add(() -> {
+        ready.countDown();
+        ready.await();
+        return handler.handle("CP-STOP-RACE", request);
+      });
+    }
+
+    int answered = 0;
+    try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+      List<Future<ObjectNode>> results = new ArrayList<>();
+      stopsAtOnce.forEach(stopAtOnce -> results.add(pool.submit(stopAtOnce)));
+      for (Future<ObjectNode> result : results) {
+        try {
+          result.get();
+          answered++;
+        } catch (ExecutionException lostTheRace) {
+          // Answered with an error by the dispatcher; the charge point resends it.
+        }
+      }
+    }
+
+    assertThat(answered).isPositive();
+    assertThat(stops.of("CP-STOP-RACE")).hasSize(1);
+    assertThat(stopOf(transactionId).get("stop_reason"))
+        .isEqualTo(stops.of("CP-STOP-RACE").getFirst().reason().name());
+  }
+
   private void insertTag(String idTag, String status) {
     jdbc.sql("insert into id_tag (id_tag, status) values (?, ?)").params(idTag, status).update();
   }
@@ -203,15 +259,15 @@ class StopTransactionTest {
 
   /**
    * Handlers run on the WebSocket threads, which {@code @RecordApplicationEvents} does not see, so
-   * a listener collects the events instead. The context is shared, so each test reads its own
-   * station.
+   * a listener collects the events instead. It listens after the commit, as real consumers do, so a
+   * stop that rolls back is not counted. The context is shared, so each test reads its own station.
    */
   @TestComponent
   static class RecordedStops {
 
     private final List<SessionCompleted> all = new CopyOnWriteArrayList<>();
 
-    @EventListener
+    @TransactionalEventListener
     void on(SessionCompleted completed) {
       all.add(completed);
     }
