@@ -139,6 +139,39 @@ class OcppMessagesTest {
         .isEmpty();
   }
 
+  @Test
+  void readsAnAuthorizeRequest() {
+    ObjectNode payload = json("{\"idTag\":\"B4F62CEF\"}");
+
+    assertThat(validator.validate("Authorize", REQUEST, payload)).isEmpty();
+    assertThat(OcppMessages.read(payload, AuthorizeRequest.class))
+        .isEqualTo(new AuthorizeRequest("B4F62CEF"));
+  }
+
+  @Test
+  void writesAnAuthorizeResponseWithEveryField() {
+    ObjectNode payload =
+        OcppMessages.write(
+            new AuthorizeResponse(new IdTagInfo(AuthorizationStatus.ACCEPTED, TIME, "FLEET-01")));
+
+    assertThat(payload)
+        .isEqualTo(
+            json(
+                "{\"idTagInfo\":{\"status\":\"Accepted\","
+                    + "\"expiryDate\":\"2013-02-01T20:53:32.486Z\",\"parentIdTag\":\"FLEET-01\"}}"));
+    assertThat(validator.validate("Authorize", RESPONSE, payload)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @EnumSource(AuthorizationStatus.class)
+  void writesEveryAuthorizationStatusAsTheSchemaNamesIt(AuthorizationStatus status) {
+    ObjectNode payload =
+        OcppMessages.write(new AuthorizeResponse(new IdTagInfo(status, null, null)));
+
+    assertThat(payload.get("idTagInfo").propertyNames()).containsExactly("status");
+    assertThat(validator.validate("Authorize", RESPONSE, payload)).isEmpty();
+  }
+
   private static ObjectNode statusNotification(
       ChargePointStatus status, ChargePointErrorCode errorCode) {
     return OcppMessages.write(
