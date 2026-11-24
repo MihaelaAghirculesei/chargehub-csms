@@ -50,6 +50,19 @@ class MeterValuesTest {
   }
 
   @Test
+  void storesTheReadingsOfARepeatedMessageOnce() throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-METER-AGAIN")) {
+      int transactionId = start(chargePoint);
+
+      call(chargePoint, "2", meterValues(transactionId));
+      JsonNode repeated = call(chargePoint, "3", meterValues(transactionId));
+
+      assertThat(repeated.propertyNames()).isEmpty();
+      assertThat(valuesOf(transactionId)).containsExactly("1300");
+    }
+  }
+
+  @Test
   void answersReadingsOutsideATransactionWithoutStoringThem() throws Exception {
     try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-METER-IDLE")) {
       JsonNode answer =
