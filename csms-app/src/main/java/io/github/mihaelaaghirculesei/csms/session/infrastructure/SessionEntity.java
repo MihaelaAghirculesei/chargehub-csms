@@ -33,6 +33,8 @@ class SessionEntity {
 
   private Instant startedAt;
 
+  private Instant startReceivedAt;
+
   @Enumerated(EnumType.STRING)
   private TagStatus tagStatus;
 
@@ -56,6 +58,7 @@ class SessionEntity {
     this.idTag = start.idTag();
     this.meterStart = start.meterStart();
     this.startedAt = start.startedAt();
+    this.startReceivedAt = start.receivedAt();
     this.tagStatus = session.tagStatus();
     copy(session);
   }
@@ -70,7 +73,7 @@ class SessionEntity {
     StopColumns stopped = stop;
     return new Session(
         transactionId,
-        new SessionStart(stationId, connectorId, idTag, meterStart, startedAt),
+        new SessionStart(stationId, connectorId, idTag, meterStart, startedAt, startReceivedAt),
         tagStatus,
         stopped == null ? null : stopped.toDomain());
   }
@@ -80,14 +83,16 @@ class SessionEntity {
       @Nullable String stopIdTag,
       long meterStop,
       Instant stoppedAt,
-      @Enumerated(EnumType.STRING) StopReason stopReason) {
+      @Enumerated(EnumType.STRING) StopReason stopReason,
+      Instant stopReceivedAt) {
 
     static StopColumns of(SessionStop stop) {
-      return new StopColumns(stop.idTag(), stop.meterStop(), stop.stoppedAt(), stop.reason());
+      return new StopColumns(
+          stop.idTag(), stop.meterStop(), stop.stoppedAt(), stop.reason(), stop.receivedAt());
     }
 
     SessionStop toDomain() {
-      return new SessionStop(stopIdTag, meterStop, stoppedAt, stopReason);
+      return new SessionStop(stopIdTag, meterStop, stoppedAt, stopReason, stopReceivedAt);
     }
   }
 }

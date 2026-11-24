@@ -12,9 +12,14 @@ import org.jspecify.annotations.Nullable;
  *     differ from the tag that started it, for example another card of the same group
  * @param meterStop the energy register of the connector in Wh
  * @param stoppedAt by the clock of the charge point
+ * @param receivedAt by the clock of the central system
  */
 public record SessionStop(
-    @Nullable String idTag, long meterStop, Instant stoppedAt, StopReason reason) {
+    @Nullable String idTag,
+    long meterStop,
+    Instant stoppedAt,
+    StopReason reason,
+    Instant receivedAt) {
 
   public SessionStop {
     if (idTag != null) {

@@ -10,6 +10,7 @@ import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionResponse;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
+import java.time.Clock;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,14 +29,17 @@ class StartTransactionHandler implements ActionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(StartTransactionHandler.class);
 
+  private final Clock clock;
   private final IdTagAuthorization authorization;
   private final SessionRepository sessions;
   private final ApplicationEventPublisher events;
 
   StartTransactionHandler(
+      Clock clock,
       IdTagAuthorization authorization,
       SessionRepository sessions,
       ApplicationEventPublisher events) {
+    this.clock = clock;
     this.authorization = authorization;
     this.sessions = sessions;
     this.events = events;
@@ -59,7 +63,8 @@ class StartTransactionHandler implements ActionHandler {
             started.connectorId(),
             started.idTag(),
             started.meterStart(),
-            started.timestamp());
+            started.timestamp(),
+            clock.instant());
     Authorization tag = authorization.authorize(start.idTag());
     // Before the check for a tag that is already charging: a repeated start would find its own
     // session there and get ConcurrentTx.

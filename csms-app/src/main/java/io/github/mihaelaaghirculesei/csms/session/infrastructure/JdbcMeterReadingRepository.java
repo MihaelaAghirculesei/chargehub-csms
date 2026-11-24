@@ -23,10 +23,11 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
   private static final String INSERT =
       """
       insert into meter_value
-          (transaction_id, sampled_at, value, measurand, unit, phase, context, location, format)
+          (transaction_id, sampled_at, received_at, value, measurand, unit, phase, context,
+           location, format)
       select ?, r.*
-      from unnest(?::timestamptz[], ?::text[], ?::text[], ?::text[], ?::text[], ?::text[],
-                  ?::text[], ?::text[]) as r
+      from unnest(?::timestamptz[], ?::timestamptz[], ?::text[], ?::text[], ?::text[],
+                  ?::text[], ?::text[], ?::text[], ?::text[]) as r
       on conflict (transaction_id, sampled_at, measurand, phase, location, context) do nothing
       """;
 
@@ -45,6 +46,7 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
         .params(
             transactionId,
             column(readings, reading -> reading.sampledAt().toString()),
+            column(readings, reading -> reading.receivedAt().toString()),
             column(readings, MeterReading::value),
             column(readings, MeterReading::measurand),
             column(readings, MeterReading::unit),

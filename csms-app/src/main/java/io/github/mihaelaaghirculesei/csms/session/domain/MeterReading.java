@@ -10,11 +10,13 @@ import org.jspecify.annotations.Nullable;
  * them without acting on most of them.
  *
  * @param sampledAt by the clock of the charge point
+ * @param receivedAt by the clock of the central system
  * @param value as the charge point sent it: a number, or signed data when the format says so
  * @param phase null when the reading is not tied to a phase
  */
 public record MeterReading(
     Instant sampledAt,
+    Instant receivedAt,
     String value,
     String measurand,
     String unit,
@@ -35,6 +37,7 @@ public record MeterReading(
    */
   public static MeterReading of(
       Instant sampledAt,
+      Instant receivedAt,
       String value,
       @Nullable String measurand,
       @Nullable String unit,
@@ -44,6 +47,7 @@ public record MeterReading(
       @Nullable String format) {
     return new MeterReading(
         sampledAt,
+        receivedAt,
         value,
         Objects.requireNonNullElse(measurand, DEFAULT_MEASURAND),
         Objects.requireNonNullElse(unit, DEFAULT_UNIT),
