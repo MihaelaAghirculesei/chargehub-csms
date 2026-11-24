@@ -133,6 +133,30 @@ class StopTransactionTest {
     }
   }
 
+  @Test
+  void storesTheTransactionDataOfTheFirstStopOnly() throws Exception {
+    insertTag("STOP-DATA", "ACCEPTED");
+    String transactionData =
+        ",\"transactionData\":[{\"timestamp\":\"2026-11-24T10:30:00Z\","
+            + "\"sampledValue\":[{\"value\":\"5000\"},{\"value\":\"7.4\","
+            + "\"measurand\":\"Power.Active.Import\",\"unit\":\"kW\"}]}]";
+
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-STOP-DATA")) {
+      int transactionId = start(chargePoint, "STOP-DATA");
+      call(chargePoint, "2", stop(transactionId, transactionData));
+      call(chargePoint, "3", stop(transactionId, transactionData));
+
+      assertThat(
+              jdbc.sql(
+                      "select value || ' ' || unit from meter_value where transaction_id = ?"
+                          + " order by id")
+                  .param(transactionId)
+                  .query(String.class)
+                  .list())
+          .containsExactly("5000 Wh", "7.4 kW");
+    }
+  }
+
   private void insertTag(String idTag, String status) {
     jdbc.sql("insert into id_tag (id_tag, status) values (?, ?)").params(idTag, status).update();
   }
