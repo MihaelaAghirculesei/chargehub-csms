@@ -21,3 +21,4 @@ Why the project looks the way it does. How these records work is described in
 | [0014](0014-keep-jpa-entities-apart-from-the-domain.md) | Keep JPA entities apart from the domain model | Accepted |
 | [0015](0015-postgresql-advisory-lock-for-scheduled-jobs.md) | Use a PostgreSQL advisory lock so only one instance runs a scheduled job | Accepted |
 | [0016](0016-transaction-identity-and-idempotency.md) | Give transactions their id in the database and recognise repeated messages by content | Accepted |
+| [0017](0017-dual-timestamps-and-clock-gaps.md) | Keep the station time and the receive time, and flag sessions where they drift apart | Accepted |
