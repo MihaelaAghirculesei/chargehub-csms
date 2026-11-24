@@ -23,7 +23,7 @@ class SessionTest {
 
   @Test
   void anAcceptedTagOpensAnAuthorizedSession() {
-    Session session = Session.open(7, START, Status.ACCEPTED, false);
+    Session session = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
 
     assertThat(session.tagStatus()).isEqualTo(TagStatus.ACCEPTED);
     assertThat(session.authorized()).isTrue();
@@ -31,7 +31,7 @@ class SessionTest {
 
   @Test
   void anAcceptedTagThatIsAlreadyChargingIsAConcurrentTransaction() {
-    Session session = Session.open(7, START, Status.ACCEPTED, true);
+    Session session = Session.open(7, START, Status.ACCEPTED, true, ClockGap.ON_TIME);
 
     assertThat(session.tagStatus()).isEqualTo(TagStatus.CONCURRENT_TX);
     assertThat(session.authorized()).isFalse();
@@ -49,7 +49,7 @@ class SessionTest {
   })
   void aRefusedTagStillOpensASessionWithItsStatus(
       Status tagCheck, TagStatus expected, boolean tagAlreadyCharging) {
-    Session session = Session.open(7, START, tagCheck, tagAlreadyCharging);
+    Session session = Session.open(7, START, tagCheck, tagAlreadyCharging, ClockGap.ON_TIME);
 
     assertThat(session.tagStatus()).isEqualTo(expected);
     assertThat(session.authorized()).isFalse();
@@ -74,15 +74,15 @@ class SessionTest {
 
   @Test
   void describesTheStartInItsEvent() {
-    assertThat(Session.open(7, START, Status.BLOCKED, false).started())
+    assertThat(Session.open(7, START, Status.BLOCKED, false, ClockGap.ON_TIME).started())
         .isEqualTo(new SessionStarted(7, "CP-1", 1, "B4F62CEF", false, STARTED_AT));
   }
 
   @Test
   void aSessionIsOpenUntilItIsClosed() {
-    Session open = Session.open(7, START, Status.ACCEPTED, false);
+    Session open = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
 
-    Session closed = open.close(STOP);
+    Session closed = open.close(STOP, ClockGap.ON_TIME);
 
     assertThat(open.isOpen()).isTrue();
     assertThat(closed.isOpen()).isFalse();
@@ -90,18 +90,33 @@ class SessionTest {
   }
 
   @Test
+  void aSessionIsFlaggedByAGapAtStartOrAtStop() {
+    Session onTime = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
+    Session lateStart = Session.open(7, START, Status.ACCEPTED, false, ClockGap.LATE);
+
+    assertThat(onTime.clockGapFlagged()).isFalse();
+    assertThat(onTime.close(STOP, ClockGap.ON_TIME).clockGapFlagged()).isFalse();
+    assertThat(onTime.close(STOP, ClockGap.AHEAD).clockGapFlagged()).isTrue();
+    assertThat(lateStart.clockGapFlagged()).isTrue();
+    assertThat(lateStart.close(STOP, ClockGap.ON_TIME).clockGapFlagged()).isTrue();
+  }
+
+  @Test
   void aSessionIsClosedOnlyOnce() {
-    Session closed = Session.open(7, START, Status.ACCEPTED, false).close(STOP);
+    Session closed =
+        Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME)
+            .close(STOP, ClockGap.ON_TIME);
     SessionStop late =
         new SessionStop(
             null, 9300, STOPPED_AT.plusSeconds(1), StopReason.OTHER, STOPPED_AT.plusSeconds(1));
 
-    assertThatThrownBy(() -> closed.close(late)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> closed.close(late, ClockGap.ON_TIME))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void onlyTheStationThatStartedASessionStartedIt() {
-    Session session = Session.open(7, START, Status.ACCEPTED, false);
+    Session session = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
 
     assertThat(session.startedBy("CP-1")).isTrue();
     assertThat(session.startedBy("CP-2")).isFalse();
@@ -116,7 +131,10 @@ class SessionTest {
 
   @Test
   void describesTheWholeSessionInItsCompletedEvent() {
-    assertThat(Session.open(7, START, Status.ACCEPTED, false).close(STOP).completed())
+    assertThat(
+            Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME)
+                .close(STOP, ClockGap.ON_TIME)
+                .completed())
         .isEqualTo(
             new SessionCompleted(
                 7,
@@ -133,7 +151,7 @@ class SessionTest {
 
   @Test
   void anOpenSessionHasNoCompletedEvent() {
-    Session open = Session.open(7, START, Status.ACCEPTED, false);
+    Session open = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
 
     assertThatThrownBy(open::completed).isInstanceOf(IllegalStateException.class);
   }

@@ -72,7 +72,68 @@ class LateTransactionTest {
           .containsEntry("stop_received_at", clock.instant().toString())
           .containsEntry("sampled_at", "2026-11-24T08:30:00Z")
           .containsEntry("received_at", clock.instant().toString());
+      assertThat(clockGapFlagged(transactionId)).isTrue();
     }
+  }
+
+  @Test
+  void flagsASessionStartedByAClockThatRunsAhead() throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-AHEAD")) {
+      int transactionId = start(chargePoint, "2026-11-24T13:00:00Z");
+
+      assertThat(clockGapFlagged(transactionId)).isTrue();
+    }
+  }
+
+  @Test
+  void flagsASessionWhoseStopComesWithAWrongClock() throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-STOP-AHEAD")) {
+      int transactionId = start(chargePoint, "2026-11-24T11:59:00Z");
+      assertThat(clockGapFlagged(transactionId)).isFalse();
+
+      call(
+          chargePoint,
+          "2",
+          "\"StopTransaction\",{\"transactionId\":"
+              + transactionId
+              + ",\"meterStop\":9200,\"timestamp\":\"2026-11-25T12:00:00Z\"}");
+
+      assertThat(clockGapFlagged(transactionId)).isTrue();
+    }
+  }
+
+  @Test
+  void leavesASessionWithinTheThresholdUnflagged() throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-ON-TIME")) {
+      int transactionId = start(chargePoint, "2026-11-24T11:56:00Z");
+      call(
+          chargePoint,
+          "2",
+          "\"StopTransaction\",{\"transactionId\":"
+              + transactionId
+              + ",\"meterStop\":9200,\"timestamp\":\"2026-11-24T12:04:00Z\"}");
+
+      assertThat(clockGapFlagged(transactionId)).isFalse();
+    }
+  }
+
+  private static int start(TestChargePoint chargePoint, String timestamp) throws Exception {
+    return call(
+            chargePoint,
+            "1",
+            "\"StartTransaction\",{\"connectorId\":1,\"idTag\":\"LATE-ANY\","
+                + "\"meterStart\":1200,\"timestamp\":\""
+                + timestamp
+                + "\"}")
+        .get("transactionId")
+        .intValue();
+  }
+
+  private boolean clockGapFlagged(int transactionId) {
+    return jdbc.sql("select clock_gap_flagged from charging_session where transaction_id = ?")
+        .param(transactionId)
+        .query(Boolean.class)
+        .single();
   }
 
   private Map<String, Object> timesOf(int transactionId) {

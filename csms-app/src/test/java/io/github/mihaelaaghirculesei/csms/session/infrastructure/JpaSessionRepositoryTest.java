@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.authorization.Authorization.Status;
 import io.github.mihaelaaghirculesei.csms.session.StopReason;
+import io.github.mihaelaaghirculesei.csms.session.domain.ClockGap;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
@@ -101,7 +102,8 @@ class JpaSessionRepositoryTest {
     Session session = open("REPO-START-ONCE", Status.BLOCKED, 0);
     sessions.save(session);
     Session copy =
-        Session.open(sessions.nextTransactionId(), session.start(), Status.BLOCKED, false);
+        Session.open(
+            sessions.nextTransactionId(), session.start(), Status.BLOCKED, false, ClockGap.ON_TIME);
 
     assertThatThrownBy(() -> sessions.save(copy))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -121,7 +123,8 @@ class JpaSessionRepositoryTest {
     sessions.save(session);
     Session stopped =
         session.close(
-            new SessionStop("REPO-FLEET", 9200, STOPPED_AT, StopReason.REMOTE, STOPPED_AT));
+            new SessionStop("REPO-FLEET", 9200, STOPPED_AT, StopReason.REMOTE, STOPPED_AT),
+            ClockGap.ON_TIME);
 
     sessions.save(stopped);
 
@@ -137,7 +140,9 @@ class JpaSessionRepositoryTest {
   void aStoppedTagMayChargeAgain() {
     Session first = open("REPO-AGAIN", Status.ACCEPTED, 0);
     sessions.save(first);
-    sessions.save(first.close(new SessionStop(null, 10, STOPPED_AT, StopReason.LOCAL, STOPPED_AT)));
+    sessions.save(
+        first.close(
+            new SessionStop(null, 10, STOPPED_AT, StopReason.LOCAL, STOPPED_AT), ClockGap.ON_TIME));
 
     assertThat(sessions.isCharging("REPO-AGAIN")).isFalse();
     sessions.save(open("REPO-AGAIN", Status.ACCEPTED, 10));
@@ -161,6 +166,7 @@ class JpaSessionRepositoryTest {
         sessions.nextTransactionId(),
         new SessionStart("CP-REPO", 2, idTag, meterStart, STARTED_AT, STARTED_AT),
         tagCheck,
-        false);
+        false,
+        ClockGap.ON_TIME);
   }
 }

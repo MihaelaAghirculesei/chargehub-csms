@@ -3,6 +3,7 @@ package io.github.mihaelaaghirculesei.csms.session.infrastructure;
 import io.github.mihaelaaghirculesei.csms.authorization.Authorization;
 import io.github.mihaelaaghirculesei.csms.authorization.IdTagAuthorization;
 import io.github.mihaelaaghirculesei.csms.ocpp.ActionHandler;
+import io.github.mihaelaaghirculesei.csms.session.domain.ClockGap;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
@@ -30,16 +31,19 @@ class StartTransactionHandler implements ActionHandler {
   private static final Logger log = LoggerFactory.getLogger(StartTransactionHandler.class);
 
   private final Clock clock;
+  private final SessionProperties properties;
   private final IdTagAuthorization authorization;
   private final SessionRepository sessions;
   private final ApplicationEventPublisher events;
 
   StartTransactionHandler(
       Clock clock,
+      SessionProperties properties,
       IdTagAuthorization authorization,
       SessionRepository sessions,
       ApplicationEventPublisher events) {
     this.clock = clock;
+    this.properties = properties;
     this.authorization = authorization;
     this.sessions = sessions;
     this.events = events;
@@ -80,11 +84,24 @@ class StartTransactionHandler implements ActionHandler {
               session.transactionId());
       return answer(session, tag);
     }
+    ClockGap gap =
+        ClockGap.between(start.startedAt(), start.receivedAt(), properties.clockGapThreshold());
     Session session =
         Session.open(
-            sessions.nextTransactionId(), start, tag.status(), sessions.isCharging(start.idTag()));
+            sessions.nextTransactionId(),
+            start,
+            tag.status(),
+            sessions.isCharging(start.idTag()),
+            gap);
     sessions.save(session);
     events.publishEvent(session.started());
+    ClockGaps.report(
+        gap,
+        chargePointId,
+        session.transactionId(),
+        "start",
+        start.startedAt(),
+        start.receivedAt());
     log.atInfo()
         .addKeyValue("chargePointId", chargePointId)
         .addKeyValue("transactionId", session.transactionId())

@@ -4,6 +4,7 @@ import io.github.mihaelaaghirculesei.csms.authorization.Authorization;
 import io.github.mihaelaaghirculesei.csms.authorization.IdTagAuthorization;
 import io.github.mihaelaaghirculesei.csms.ocpp.ActionHandler;
 import io.github.mihaelaaghirculesei.csms.session.StopReason;
+import io.github.mihaelaaghirculesei.csms.session.domain.ClockGap;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReadingRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
@@ -42,6 +43,7 @@ class StopTransactionHandler implements ActionHandler {
   private static final Logger log = LoggerFactory.getLogger(StopTransactionHandler.class);
 
   private final Clock clock;
+  private final SessionProperties properties;
   private final IdTagAuthorization authorization;
   private final SessionRepository sessions;
   private final MeterReadingRepository readings;
@@ -49,11 +51,13 @@ class StopTransactionHandler implements ActionHandler {
 
   StopTransactionHandler(
       Clock clock,
+      SessionProperties properties,
       IdTagAuthorization authorization,
       SessionRepository sessions,
       MeterReadingRepository readings,
       ApplicationEventPublisher events) {
     this.clock = clock;
+    this.properties = properties;
     this.authorization = authorization;
     this.sessions = sessions;
     this.readings = readings;
@@ -86,7 +90,9 @@ class StopTransactionHandler implements ActionHandler {
           .addKeyValue(TRANSACTION_ID, transactionId)
           .log("Ignoring a second stop from {} for transaction {}", chargePointId, transactionId);
     } else {
-      Session session = found.get().close(toDomain(stopped, receivedAt));
+      SessionStop stop = toDomain(stopped, receivedAt);
+      ClockGap gap = ClockGap.between(stop.stoppedAt(), receivedAt, properties.clockGapThreshold());
+      Session session = found.get().close(stop, gap);
       sessions.save(session);
       // Only with the first stop: a repeated stop carries the same readings again.
       List<MeterValue> transactionData = stopped.transactionData();
@@ -94,6 +100,7 @@ class StopTransactionHandler implements ActionHandler {
         readings.addAll(transactionId, MeterReadings.from(transactionData, receivedAt));
       }
       events.publishEvent(session.completed());
+      ClockGaps.report(gap, chargePointId, transactionId, "stop", stop.stoppedAt(), receivedAt);
       log.atInfo()
           .addKeyValue(CHARGE_POINT_ID, chargePointId)
           .addKeyValue(TRANSACTION_ID, transactionId)
