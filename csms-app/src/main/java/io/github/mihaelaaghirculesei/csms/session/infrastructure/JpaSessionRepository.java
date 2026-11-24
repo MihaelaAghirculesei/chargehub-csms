@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.csms.session.infrastructure;
 
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
+import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
 import io.github.mihaelaaghirculesei.csms.session.domain.TagStatus;
 import jakarta.persistence.EntityManager;
 import java.util.Optional;
@@ -34,6 +35,18 @@ class JpaSessionRepository implements SessionRepository {
   @Override
   public Optional<Session> findById(int transactionId) {
     return entities.findById(transactionId).map(SessionEntity::toDomain);
+  }
+
+  @Override
+  public Optional<Session> findByStart(SessionStart start) {
+    return entities
+        .findByStationIdAndConnectorIdAndIdTagAndMeterStartAndStartedAt(
+            start.stationId(),
+            start.connectorId(),
+            start.idTag(),
+            start.meterStart(),
+            start.startedAt())
+        .map(SessionEntity::toDomain);
   }
 
   @Override

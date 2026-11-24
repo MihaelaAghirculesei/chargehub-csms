@@ -10,6 +10,7 @@ import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionResponse;
 import io.github.mihaelaaghirculesei.ocpp.payload.Action;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,7 +20,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Opens a session when a charge point starts charging and gives it a transaction id. A refused tag
- * is answered with its status in a normal response, as for Authorize.
+ * is answered with its status in a normal response, as for Authorize. A start the charge point
+ * sends again gets the transaction id of the first one, see docs/adr/0016.
  */
 @Component
 class StartTransactionHandler implements ActionHandler {
@@ -59,6 +61,20 @@ class StartTransactionHandler implements ActionHandler {
             started.meterStart(),
             started.timestamp());
     Authorization tag = authorization.authorize(start.idTag());
+    // Before the check for a tag that is already charging: a repeated start would find its own
+    // session there and get ConcurrentTx.
+    Optional<Session> repeated = sessions.findByStart(start);
+    if (repeated.isPresent()) {
+      Session session = repeated.get();
+      log.atInfo()
+          .addKeyValue("chargePointId", chargePointId)
+          .addKeyValue("transactionId", session.transactionId())
+          .log(
+              "Answering a repeated start from {} with transaction {}",
+              chargePointId,
+              session.transactionId());
+      return answer(session, tag);
+    }
     Session session =
         Session.open(
             sessions.nextTransactionId(), start, tag.status(), sessions.isCharging(start.idTag()));
@@ -73,6 +89,10 @@ class StartTransactionHandler implements ActionHandler {
             chargePointId,
             start.connectorId(),
             session.tagStatus());
+    return answer(session, tag);
+  }
+
+  private static ObjectNode answer(Session session, Authorization tag) {
     return OcppMessages.write(
         new StartTransactionResponse(
             IdTagInfos.of(session.tagStatus(), tag), session.transactionId()));
