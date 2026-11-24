@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface SessionEntities extends JpaRepository<SessionEntity, Integer> {
 
-  boolean existsByIdTagAndTagStatus(String idTag, TagStatus tagStatus);
+  boolean existsByIdTagAndTagStatusAndStopIsNull(String idTag, TagStatus tagStatus);
 }
