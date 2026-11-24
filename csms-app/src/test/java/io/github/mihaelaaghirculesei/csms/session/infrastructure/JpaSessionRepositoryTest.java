@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.mihaelaaghirculesei.csms.TestcontainersConfiguration;
 import io.github.mihaelaaghirculesei.csms.authorization.Authorization.Status;
+import io.github.mihaelaaghirculesei.csms.session.StopReason;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
+import io.github.mihaelaaghirculesei.csms.session.domain.SessionStop;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class JpaSessionRepositoryTest {
 
   private static final Instant STARTED_AT = Instant.parse("2026-11-24T10:00:00.123456Z");
+  private static final Instant STOPPED_AT = STARTED_AT.plusSeconds(3600);
 
   @Autowired private SessionRepository sessions;
   @Autowired private JdbcClient jdbc;
@@ -79,6 +82,54 @@ class JpaSessionRepositoryTest {
                 .query(Integer.class)
                 .single())
         .isEqualTo(1);
+  }
+
+  @Test
+  void readsBackAnOpenSession() {
+    Session session = open("REPO-OPEN", Status.ACCEPTED, 1200);
+    sessions.save(session);
+
+    assertThat(sessions.findById(session.transactionId())).contains(session);
+  }
+
+  @Test
+  void readsBackAStoppedSession() {
+    Session session = open("REPO-STOPPED", Status.ACCEPTED, 1200);
+    sessions.save(session);
+    Session stopped =
+        session.close(new SessionStop("REPO-FLEET", 9200, STOPPED_AT, StopReason.REMOTE));
+
+    sessions.save(stopped);
+
+    assertThat(sessions.findById(session.transactionId())).contains(stopped);
+  }
+
+  @Test
+  void findsNoSessionForAnUnknownTransactionId() {
+    assertThat(sessions.findById(-1)).isEmpty();
+  }
+
+  @Test
+  void aStoppedTagMayChargeAgain() {
+    Session first = open("REPO-AGAIN", Status.ACCEPTED, 0);
+    sessions.save(first);
+    sessions.save(first.close(new SessionStop(null, 10, STOPPED_AT, StopReason.LOCAL)));
+
+    assertThat(sessions.isCharging("REPO-AGAIN")).isFalse();
+    sessions.save(open("REPO-AGAIN", Status.ACCEPTED, 10));
+    assertThat(sessions.isCharging("REPO-AGAIN")).isTrue();
+  }
+
+  @Test
+  void refusesAStopThatIsNotWhole() {
+    Session session = open("REPO-HALF", Status.ACCEPTED, 0);
+    sessions.save(session);
+
+    assertThatThrownBy(() ->
+            jdbc.sql("update charging_session set meter_stop = 10 where transaction_id = ?")
+                .param(session.transactionId())
+                .update())
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   private Session open(String idTag, Status tagCheck, long meterStart) {
