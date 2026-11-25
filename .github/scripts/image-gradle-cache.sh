@@ -20,25 +20,35 @@ if [[ -z $base ]]; then
   exit 1
 fi
 
-# The target is the one the Dockerfile uses, which makes it the same cache mount.
+# The target is the one the Dockerfile uses, which makes it the same cache mount. The content of
+# a cache mount does not invalidate the layer cache, so a cached step would skip the copy: a new
+# RUN_ID on every call makes the step run. --no-cache cannot be used instead, because it also
+# gives the build new, empty cache mounts.
+run_id=$(date +%s%N)
+
 if [[ $mode == seed ]]; then
-  docker build --quiet --build-arg BASE="$base" --file - "$dir" > /dev/null <<'EOF'
+  docker build --quiet --build-arg BASE="$base" --build-arg RUN_ID="$run_id" \
+    --file - "$dir" > /dev/null <<'EOF'
 ARG BASE
 FROM ${BASE}
+ARG RUN_ID
 COPY . /seed
-RUN --mount=type=cache,target=/root/.gradle,sharing=locked cp -a /seed/. /root/.gradle/
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    echo "$RUN_ID" > /dev/null && cp -a /seed/. /root/.gradle/
 EOF
 else
   # Only what was downloaded: the wrapper distribution and the module artifacts. Lock files
   # belong to the Gradle run that wrote them.
   context=$(mktemp -d)
   mkdir -p "$dir"
-  docker build --quiet --build-arg BASE="$base" --output "type=local,dest=$dir" \
-    --file - "$context" <<'EOF'
+  docker build --quiet --build-arg BASE="$base" --build-arg RUN_ID="$run_id" \
+    --output "type=local,dest=$dir" --file - "$context" <<'EOF'
 ARG BASE
 FROM ${BASE} AS copy
+ARG RUN_ID
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
-    mkdir -p /out/caches \
+    echo "$RUN_ID" > /dev/null \
+    && mkdir -p /out/caches \
     && cp -a /root/.gradle/wrapper /out/ \
     && cp -a /root/.gradle/caches/modules-2 /out/caches/ \
     && find /out -name '*.lock' -delete
