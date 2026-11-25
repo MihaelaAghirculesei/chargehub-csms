@@ -79,6 +79,12 @@ jobs:
         if: ${{ steps.image-gradle.outputs.cache-matched-key != '' }}
         run: .github/scripts/image-gradle-cache.sh seed "$RUNNER_TEMP/image-gradle"
 
+      - name: Verify that both images build without network
+        if: ${{ steps.image-gradle.outputs.cache-hit == 'true' }}
+        run: |
+          docker build --network=none --build-arg MODULE=csms-app .
+          docker build --network=none --build-arg MODULE=charge-point-simulator .
+
       # --wait returns only when every service reports healthy, so a broken healthcheck or an
       # image that does not build fails here. The sim profile includes the central system.
       - run: |
