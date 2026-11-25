@@ -104,6 +104,18 @@ class StopTransactionHandler implements ActionHandler {
       }
       events.publishEvent(session.completed());
       ClockGaps.report(gap, chargePointId, transactionId, "stop", stop.stoppedAt(), receivedAt);
+      if (session.meterStopBelowStart()) {
+        log.atWarn()
+            .addKeyValue(CHARGE_POINT_ID, chargePointId)
+            .addKeyValue(TRANSACTION_ID, transactionId)
+            .log(
+                "The energy register of transaction {} on {} stopped at {} Wh, below its start"
+                    + " at {} Wh",
+                transactionId,
+                chargePointId,
+                stop.meterStop(),
+                session.start().meterStart());
+      }
       log.atInfo()
           .addKeyValue(CHARGE_POINT_ID, chargePointId)
           .addKeyValue(TRANSACTION_ID, transactionId)

@@ -19,10 +19,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestComponent;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -34,6 +37,7 @@ import tools.jackson.databind.node.ObjectNode;
 /** StopTransaction from the WebSocket frame to the database and back. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import({TestcontainersConfiguration.class, StopTransactionTest.RecordedStops.class})
+@ExtendWith(OutputCaptureExtension.class)
 class StopTransactionTest {
 
   private static final Duration WAIT = Duration.ofSeconds(5);
@@ -90,6 +94,28 @@ class StopTransactionTest {
       assertThat(stopOf(transactionId))
           .containsEntry("stop_reason", "LOCAL")
           .containsEntry("stop_id_tag", null);
+    }
+  }
+
+  @Test
+  void flagsAndLogsAStopBelowTheStart(CapturedOutput output) throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-STOP-BELOW")) {
+      int transactionId = start(chargePoint, "STOP-BELOW");
+      call(chargePoint, "2", stop(transactionId, "").replace("9200", "1100"));
+
+      assertThat(
+              jdbc.sql(
+                      "select meter_stop_below_start from charging_session"
+                          + " where transaction_id = ?")
+                  .param(transactionId)
+                  .query(Boolean.class)
+                  .single())
+          .isTrue();
+      assertThat(output.getOut())
+          .contains(
+              "The energy register of transaction "
+                  + transactionId
+                  + " on CP-STOP-BELOW stopped at 1100 Wh, below its start at 1200 Wh");
     }
   }
 

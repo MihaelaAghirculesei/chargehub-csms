@@ -67,6 +67,15 @@ public record Session(
     return new Session(transactionId, start, tagStatus, clockGapFlagged || stopGap.flagged(), stop);
   }
 
+  /**
+   * Whether the energy register was lower at the stop than at the start, which only a meter fault,
+   * a replaced meter or a wrong unit explains. False while the session is open.
+   */
+  public boolean meterStopBelowStart() {
+    SessionStop stopped = stop;
+    return stopped != null && stopped.meterStop() < start.meterStart();
+  }
+
   public SessionStarted started() {
     return new SessionStarted(
         transactionId,
