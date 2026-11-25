@@ -63,11 +63,39 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The image build downloads its Gradle dependencies inside Docker, where the cache of the
+      # build job cannot reach them. Downloading everything on every run made Maven Central
+      # answer the shared runners with 429 Too Many Requests and fail the job at random.
+      - name: Restore the Gradle dependencies of the image build
+        id: image-gradle
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/image-gradle
+          key: image-gradle-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml', '**/*.gradle.kts') }}
+          # An older set still saves most downloads when one version changes.
+          restore-keys: image-gradle-
+
+      - name: Put them in the cache mount of the image build
+        if: ${{ steps.image-gradle.outputs.cache-matched-key != '' }}
+        run: .github/scripts/image-gradle-cache.sh seed "$RUNNER_TEMP/image-gradle"
+
       # --wait returns only when every service reports healthy, so a broken healthcheck or an
       # image that does not build fails here. The sim profile includes the central system.
       - run: |
           cp deploy/.env.example deploy/.env
           docker compose -f deploy/docker-compose.yml --profile sim up --detach --wait --wait-timeout 900
+
+      # Saved only when the build files changed, so an unchanged set is not uploaded again.
+      - name: Take the dependencies out of the cache mount
+        if: ${{ steps.image-gradle.outputs.cache-hit != 'true' }}
+        run: .github/scripts/image-gradle-cache.sh extract "$RUNNER_TEMP/image-gradle"
+
+      - name: Save the Gradle dependencies of the image build
+        if: ${{ steps.image-gradle.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/image-gradle
+          key: ${{ steps.image-gradle.outputs.cache-primary-key }}
 
       # The definition of done of Phase 2, checked on every change.
       - name: 100 simulated charge points stay connected
