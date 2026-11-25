@@ -2,6 +2,8 @@ package io.github.mihaelaaghirculesei.csms.session.infrastructure;
 
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReading;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReadingRepository;
+import io.github.mihaelaaghirculesei.csms.session.domain.RegisterDrop;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -29,6 +31,15 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
       from unnest(?::timestamptz[], ?::timestamptz[], ?::text[], ?::text[], ?::text[],
                   ?::text[], ?::text[], ?::text[], ?::text[]) as r
       on conflict (transaction_id, sampled_at, measurand, phase, location, context) do nothing
+      returning id
+      """;
+
+  // A separate statement: the rows an insert adds are not visible to the rest of its statement.
+  private static final String DROPS =
+      """
+      select sampled_at, phase, energy_wh, previous_wh from energy_register_reading
+      where transaction_id = ? and went_back and (id = any(?) or previous_id = any(?))
+      order by sampled_at, id
       """;
 
   private final JdbcClient jdbc;
@@ -38,23 +49,38 @@ class JdbcMeterReadingRepository implements MeterReadingRepository {
   }
 
   @Override
-  public void addAll(int transactionId, List<MeterReading> readings) {
+  public List<RegisterDrop> addAll(int transactionId, List<MeterReading> readings) {
     if (readings.isEmpty()) {
-      return;
+      return List.of();
     }
-    jdbc.sql(INSERT)
-        .params(
-            transactionId,
-            column(readings, reading -> reading.sampledAt().toString()),
-            column(readings, reading -> reading.receivedAt().toString()),
-            column(readings, MeterReading::value),
-            column(readings, MeterReading::measurand),
-            column(readings, MeterReading::unit),
-            column(readings, MeterReading::phase),
-            column(readings, MeterReading::context),
-            column(readings, MeterReading::location),
-            column(readings, MeterReading::format))
-        .update();
+    Long[] stored =
+        jdbc.sql(INSERT)
+            .params(
+                transactionId,
+                column(readings, reading -> reading.sampledAt().toString()),
+                column(readings, reading -> reading.receivedAt().toString()),
+                column(readings, MeterReading::value),
+                column(readings, MeterReading::measurand),
+                column(readings, MeterReading::unit),
+                column(readings, MeterReading::phase),
+                column(readings, MeterReading::context),
+                column(readings, MeterReading::location),
+                column(readings, MeterReading::format))
+            .query(Long.class)
+            .list()
+            .toArray(Long[]::new);
+    if (stored.length == 0) {
+      return List.of();
+    }
+    return jdbc.sql(DROPS)
+        .params(transactionId, stored, stored)
+        .query((row, rowNumber) ->
+            new RegisterDrop(
+                row.getObject("sampled_at", OffsetDateTime.class).toInstant(),
+                row.getString("phase"),
+                row.getBigDecimal("energy_wh"),
+                row.getBigDecimal("previous_wh")))
+        .list();
   }
 
   private static String[] column(

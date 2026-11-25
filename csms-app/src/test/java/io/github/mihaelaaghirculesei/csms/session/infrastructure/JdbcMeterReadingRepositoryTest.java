@@ -8,9 +8,11 @@ import io.github.mihaelaaghirculesei.csms.authorization.Authorization.Status;
 import io.github.mihaelaaghirculesei.csms.session.domain.ClockGap;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReading;
 import io.github.mihaelaaghirculesei.csms.session.domain.MeterReadingRepository;
+import io.github.mihaelaaghirculesei.csms.session.domain.RegisterDrop;
 import io.github.mihaelaaghirculesei.csms.session.domain.Session;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionRepository;
 import io.github.mihaelaaghirculesei.csms.session.domain.SessionStart;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -149,12 +151,39 @@ class JdbcMeterReadingRepositoryTest {
   }
 
   @Test
+  void returnsTheReadingsThatGoBackBecauseOfTheMessage() {
+    int transactionId = session("METER-DROP");
+    readings.addAll(transactionId, List.of(energy(1, "1500"), energy(3, "1600")));
+
+    List<RegisterDrop> drops = readings.addAll(transactionId, List.of(energy(2, "1700")));
+
+    assertThat(drops)
+        .containsExactly(
+            new RegisterDrop(
+                T0.plusSeconds(180), null, new BigDecimal("1600"), new BigDecimal("1700")));
+  }
+
+  @Test
+  void returnsNoDropForAMessageAlreadyStored() {
+    int transactionId = session("METER-DROP-AGAIN");
+    List<MeterReading> message = List.of(energy(1, "1500"), energy(2, "1400"));
+
+    assertThat(readings.addAll(transactionId, message)).hasSize(1);
+    assertThat(readings.addAll(transactionId, message)).isEmpty();
+  }
+
+  @Test
   void refusesReadingsForAnUnknownSession() {
     List<MeterReading> orphan =
         List.of(MeterReading.of(T0, T0, "1", null, null, null, null, null, null));
 
     assertThatThrownBy(() -> readings.addAll(-1, orphan))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  private static MeterReading energy(int minute, String value) {
+    Instant sampledAt = T0.plusSeconds(60L * minute);
+    return MeterReading.of(sampledAt, sampledAt, value, null, null, null, null, null, null);
   }
 
   private int session(String idTag) {
