@@ -7,9 +7,12 @@ import io.github.mihaelaaghirculesei.csms.ocpp.infrastructure.TestChargePoint;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -19,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 /** MeterValues from the WebSocket frame to the database. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
+@ExtendWith(OutputCaptureExtension.class)
 class MeterValuesTest {
 
   private static final Duration WAIT = Duration.ofSeconds(5);
@@ -59,6 +63,28 @@ class MeterValuesTest {
 
       assertThat(repeated.propertyNames()).isEmpty();
       assertThat(valuesOf(transactionId)).containsExactly("1300");
+    }
+  }
+
+  @Test
+  void storesAndLogsAnEnergyRegisterThatGoesBack(CapturedOutput output) throws Exception {
+    try (TestChargePoint chargePoint = new TestChargePoint(port, "CP-METER-BACK")) {
+      int transactionId = start(chargePoint);
+
+      call(
+          chargePoint,
+          "2",
+          "\"MeterValues\",{\"connectorId\":1,\"transactionId\":"
+              + transactionId
+              + ",\"meterValue\":[{\"timestamp\":\"2026-11-24T10:01:00Z\","
+              + "\"sampledValue\":[{\"value\":\"1.1\",\"unit\":\"kWh\"}]}]}");
+
+      assertThat(valuesOf(transactionId)).containsExactly("1.1");
+      assertThat(output.getOut())
+          .contains(
+              "The energy register of transaction "
+                  + transactionId
+                  + " on CP-METER-BACK went back at 2026-11-24T10:01:00Z: 1100 Wh after 1200 Wh");
     }
   }
 

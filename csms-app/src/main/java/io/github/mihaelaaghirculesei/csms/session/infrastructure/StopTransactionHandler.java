@@ -97,7 +97,10 @@ class StopTransactionHandler implements ActionHandler {
       // Only with the first stop: a repeated stop carries the same readings again.
       List<MeterValue> transactionData = stopped.transactionData();
       if (transactionData != null) {
-        readings.addAll(transactionId, MeterReadings.from(transactionData, receivedAt));
+        RegisterDrops.report(
+            readings.addAll(transactionId, MeterReadings.from(transactionData, receivedAt)),
+            chargePointId,
+            transactionId);
       }
       events.publishEvent(session.completed());
       ClockGaps.report(gap, chargePointId, transactionId, "stop", stop.stoppedAt(), receivedAt);

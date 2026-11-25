@@ -62,7 +62,10 @@ class MeterValuesHandler implements ActionHandler {
           .log(
               "Ignoring readings from {} for unknown transaction {}", chargePointId, transactionId);
     } else {
-      readings.addAll(transactionId, MeterReadings.from(values.meterValue(), clock.instant()));
+      RegisterDrops.report(
+          readings.addAll(transactionId, MeterReadings.from(values.meterValue(), clock.instant())),
+          chargePointId,
+          transactionId);
     }
     return JsonNodeFactory.instance.objectNode();
   }
