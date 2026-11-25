@@ -22,6 +22,19 @@ class SessionTest {
       new SessionStop(null, 9200, STOPPED_AT, StopReason.EV_DISCONNECTED, STOPPED_AT);
 
   @Test
+  void tellsWhenTheMeterStoppedBelowItsStart() {
+    Session open = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
+    SessionStop below =
+        new SessionStop(null, 1199, STOPPED_AT, StopReason.EV_DISCONNECTED, STOPPED_AT);
+    SessionStop same =
+        new SessionStop(null, 1200, STOPPED_AT, StopReason.EV_DISCONNECTED, STOPPED_AT);
+
+    assertThat(open.meterStopBelowStart()).isFalse();
+    assertThat(open.close(below, ClockGap.ON_TIME).meterStopBelowStart()).isTrue();
+    assertThat(open.close(same, ClockGap.ON_TIME).meterStopBelowStart()).isFalse();
+  }
+
+  @Test
   void anAcceptedTagOpensAnAuthorizedSession() {
     Session session = Session.open(7, START, Status.ACCEPTED, false, ClockGap.ON_TIME);
 
