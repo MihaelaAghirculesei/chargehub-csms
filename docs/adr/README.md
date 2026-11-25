@@ -22,3 +22,4 @@ Why the project looks the way it does. How these records work is described in
 | [0015](0015-postgresql-advisory-lock-for-scheduled-jobs.md) | Use a PostgreSQL advisory lock so only one instance runs a scheduled job | Accepted |
 | [0016](0016-transaction-identity-and-idempotency.md) | Give transactions their id in the database and recognise repeated messages by content | Accepted |
 | [0017](0017-dual-timestamps-and-clock-gaps.md) | Keep the station time and the receive time, and flag sessions where they drift apart | Accepted |
+| [0018](0018-energy-registers-going-back.md) | Find energy registers that go backwards when they are read, not when they are stored | Accepted |
