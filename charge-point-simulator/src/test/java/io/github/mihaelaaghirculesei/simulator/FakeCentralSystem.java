@@ -4,10 +4,15 @@ import io.github.mihaelaaghirculesei.ocpp.frame.Call;
 import io.github.mihaelaaghirculesei.ocpp.frame.CallResult;
 import io.github.mihaelaaghirculesei.ocpp.frame.FrameCodec;
 import io.github.mihaelaaghirculesei.ocpp.frame.OcppFrame;
+import io.github.mihaelaaghirculesei.ocpp.message.AuthorizationStatus;
+import io.github.mihaelaaghirculesei.ocpp.message.AuthorizeResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.BootNotificationResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.HeartbeatResponse;
+import io.github.mihaelaaghirculesei.ocpp.message.IdTagInfo;
 import io.github.mihaelaaghirculesei.ocpp.message.OcppMessages;
 import io.github.mihaelaaghirculesei.ocpp.message.RegistrationStatus;
+import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionResponse;
+import io.github.mihaelaaghirculesei.ocpp.message.StopTransactionResponse;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -25,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -121,10 +127,13 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
 
   /**
    * Answers BootNotification with the given statuses in turn, then with Accepted, Heartbeat with a
-   * fixed time, and StatusNotification with its empty answer.
+   * fixed time, StatusNotification with its empty answer, and the messages of a charging session
+   * with Accepted and transaction ids from 1.
    */
   public void answerBootsWith(int interval, RegistrationStatus... statuses) {
     Queue<RegistrationStatus> pending = new ConcurrentLinkedQueue<>(List.of(statuses));
+    AtomicInteger transactions = new AtomicInteger();
+    IdTagInfo accepted = new IdTagInfo(AuthorizationStatus.ACCEPTED, null, null);
     answerWith(call -> {
       ObjectNode payload =
           switch (call.action()) {
@@ -136,6 +145,11 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
                         interval));
             case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
             case "StatusNotification" -> JsonNodeFactory.instance.objectNode();
+            case "Authorize" -> OcppMessages.write(new AuthorizeResponse(accepted));
+            case "StartTransaction" ->
+                OcppMessages.write(
+                    new StartTransactionResponse(accepted, transactions.incrementAndGet()));
+            case "StopTransaction" -> OcppMessages.write(new StopTransactionResponse(accepted));
             default -> throw new IllegalStateException("Unexpected action " + call.action());
           };
       return CODEC.encode(new CallResult(call.messageId(), payload));

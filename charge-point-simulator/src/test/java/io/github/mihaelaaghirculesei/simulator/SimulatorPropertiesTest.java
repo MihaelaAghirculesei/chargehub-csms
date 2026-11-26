@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.mihaelaaghirculesei.simulator.SimulatorProperties.ChargePoints;
 import io.github.mihaelaaghirculesei.simulator.SimulatorProperties.Faults;
+import io.github.mihaelaaghirculesei.simulator.SimulatorProperties.Sessions;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.random.RandomGenerator;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,25 @@ class SimulatorPropertiesTest {
     ChargePoints chargePoints = new ChargePoints(3, "SIM-", 2, Duration.ZERO);
 
     assertThat(chargePoints.ids()).containsExactly("SIM-0001", "SIM-0002", "SIM-0003");
+  }
+
+  @Test
+  void givesTheIdTagsToTheChargePointsInTurn() {
+    Sessions sessions =
+        new Sessions(
+            List.of("TAG-A", "TAG-B"), Duration.ofMinutes(5), Duration.ofMinutes(1), 11_000);
+
+    assertThat(Stream.of(0, 1, 2).map(sessions::plan))
+        .extracting(plan -> Objects.requireNonNull(plan).idTag())
+        .containsExactly("TAG-A", "TAG-B", "TAG-A");
+  }
+
+  @Test
+  void chargesNowhereWithoutIdTags() {
+    Sessions sessions =
+        new Sessions(List.of(), Duration.ofMinutes(5), Duration.ofMinutes(1), 11_000);
+
+    assertThat(sessions.plan(0)).isNull();
   }
 
   @Test

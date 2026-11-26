@@ -112,6 +112,14 @@ With the application running, start 100 simulated charge points in a second term
 
 Their ids are `SIM-0001` to `SIM-0100` (`chargehub.simulator.charge-points.id-prefix`), and they connect over the first 5 seconds (`chargehub.simulator.charge-points.start-spread`). Each one connects to `ws://localhost:8080/ocpp` (`chargehub.simulator.central-system`), boots and sends heartbeats at the interval the central system answers with. When the connection is lost it connects again, waiting longer after each failed attempt (`chargehub.simulator.reconnect.*`).
 
+Given id tags, the charge points also charge, one session after the other:
+
+```bash
+./gradlew :charge-point-simulator:bootRun --args="--chargehub.simulator.sessions.id-tags=TAG-A,TAG-B"
+```
+
+The tags go to the charge points in turn, and the central system accepts only the tags it knows. Each session authorizes the tag, starts a transaction, charges at 11 kW for 5 minutes and stops, with a pause of 1 minute before the next one (`chargehub.simulator.sessions.power-watts`, `.duration`, `.idle-time`). The status of the connector follows the session, and its energy register only goes up.
+
 ## Out of scope
 
 - OCPP 2.0.1: the protocol sits behind its own module, so it can be added later ([ADR 0003](docs/adr/0003-ocpp-1-6j-as-first-protocol-version.md))

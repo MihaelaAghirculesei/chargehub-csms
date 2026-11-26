@@ -17,14 +17,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.random.RandomGenerator;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * A simulated charge point: it boots, reports its connectors, then sends heartbeats. When the
- * session fails it connects again, like a real charge point. Not thread-safe: one thread runs it.
+ * A simulated charge point: it boots, reports its connectors, then sends heartbeats and, when it
+ * has a {@link SessionPlan}, charges. When the connection fails it connects again, like a real
+ * charge point, and goes on with the charging session it was in. Not thread-safe: one thread runs
+ * it.
  */
 public final class ChargePoint {
 
@@ -49,6 +52,9 @@ public final class ChargePoint {
   // Read by tests from another thread.
   private final AtomicInteger failedAttempts = new AtomicInteger();
   private final Map<Integer, ChargePointStatus> reportedLast = new ConcurrentHashMap<>();
+  private final @Nullable Charging charging;
+  // Kept across connections, so a session goes on where it was.
+  private @Nullable Deadline chargingStep;
 
   public ChargePoint(
       HttpClient client,
@@ -58,11 +64,21 @@ public final class ChargePoint {
       ReconnectPolicy reconnect,
       FaultPolicy faults,
       int connectors) {
-    this(client, centralSystem, id, callTimeout, reconnect, faults, connectors, Clock.systemUTC());
+    this(
+        client,
+        centralSystem,
+        id,
+        callTimeout,
+        reconnect,
+        faults,
+        connectors,
+        Clock.systemUTC(),
+        null);
   }
 
   /**
    * @param clock what the charge point believes the time is, for every timestamp it sends
+   * @param sessions how it charges; null, it never does
    */
   // Each parameter is a separate setting of one simulated device; grouping them in a holder
   // object would only move the same list somewhere else.
@@ -75,7 +91,8 @@ public final class ChargePoint {
       ReconnectPolicy reconnect,
       FaultPolicy faults,
       int connectors,
-      Clock clock) {
+      Clock clock,
+      @Nullable SessionPlan sessions) {
     this.client = client;
     this.centralSystem = centralSystem;
     this.id = id;
@@ -84,6 +101,7 @@ public final class ChargePoint {
     this.faults = new AtomicReference<>(faults);
     this.connectors = new Connectors(connectors);
     this.clock = clock;
+    this.charging = sessions == null ? null : new Charging(id, sessions, this.connectors, clock);
   }
 
   public String id() {
@@ -126,8 +144,14 @@ public final class ChargePoint {
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
       report(connection, connectors.reports(clock.instant()));
       Deadline heartbeat = Deadline.after(heartbeatInterval);
+      Charging.Link link = link(connection);
+      if (charging != null && chargingStep == null) {
+        chargingStep = Deadline.after(charging.firstWait());
+      }
       while (!Thread.currentThread().isInterrupted()) {
-        waitOrFail(connection, heartbeat.left());
+        Deadline step = chargingStep;
+        waitOrFail(
+            connection, (step == null ? heartbeat : Deadline.earliest(heartbeat, step)).left());
         // Only a passed deadline acts, so the loop stays right once other deadlines share it.
         if (heartbeat.passed()) {
           call(
@@ -137,6 +161,11 @@ public final class ChargePoint {
               HeartbeatResponse.class);
           report(connection, connectors.advance(faults.get(), random, clock.instant()));
           heartbeat = Deadline.after(heartbeatInterval);
+        }
+        // A step that fails keeps its passed deadline, so it is the first thing done after the
+        // next boot.
+        if (charging != null && step != null && step.passed()) {
+          chargingStep = Deadline.after(charging.step(link));
         }
       }
     }
@@ -168,6 +197,21 @@ public final class ChargePoint {
       call(connection, Action.STATUS_NOTIFICATION, report, ObjectNode.class);
       reportedLast.put(report.connectorId(), report.status());
     }
+  }
+
+  private Charging.Link link(CsmsConnection connection) {
+    return new Charging.Link() {
+      @Override
+      public <T> T call(Action action, Object request, Class<T> responseType)
+          throws InterruptedException {
+        return ChargePoint.this.call(connection, action, request, responseType);
+      }
+
+      @Override
+      public void report(StatusNotificationRequest report) throws InterruptedException {
+        ChargePoint.this.report(connection, List.of(report));
+      }
+    };
   }
 
   private <T> T call(
