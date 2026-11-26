@@ -139,7 +139,8 @@ public final class CsmsConnection implements AutoCloseable {
    * @return true if the connection is closed
    */
   public boolean awaitClosed(Duration timeout) throws InterruptedException {
-    return closed.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    // In nanoseconds: a timeout cut to whole milliseconds would end the wait early.
+    return closed.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
   }
 
   /**
