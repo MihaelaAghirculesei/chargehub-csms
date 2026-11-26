@@ -125,14 +125,19 @@ public final class ChargePoint {
       failedAttempts.set(0);
       log.info("Charge point {} accepted, heartbeat every {}", id, heartbeatInterval);
       report(connection, connectors.reports(clock.instant()));
+      Deadline heartbeat = Deadline.after(heartbeatInterval);
       while (!Thread.currentThread().isInterrupted()) {
-        waitOrFail(connection, heartbeatInterval);
-        call(
-            connection,
-            Action.HEARTBEAT,
-            JsonNodeFactory.instance.objectNode(),
-            HeartbeatResponse.class);
-        report(connection, connectors.advance(faults.get(), random, clock.instant()));
+        waitOrFail(connection, heartbeat.left());
+        // Only a passed deadline acts, so the loop stays right once other deadlines share it.
+        if (heartbeat.passed()) {
+          call(
+              connection,
+              Action.HEARTBEAT,
+              JsonNodeFactory.instance.objectNode(),
+              HeartbeatResponse.class);
+          report(connection, connectors.advance(faults.get(), random, clock.instant()));
+          heartbeat = Deadline.after(heartbeatInterval);
+        }
       }
     }
   }
