@@ -2,6 +2,7 @@ package io.github.mihaelaaghirculesei.simulator;
 
 import io.github.mihaelaaghirculesei.simulator.chargepoint.FaultPolicy;
 import io.github.mihaelaaghirculesei.simulator.chargepoint.ReconnectPolicy;
+import io.github.mihaelaaghirculesei.simulator.chargepoint.SessionPlan;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param callTimeout how long the central system may take to answer
  * @param reconnect the back-off before connecting again, see {@link ReconnectPolicy}
  * @param faults the faults the charge points produce on purpose, all off unless configured
+ * @param sessions how the charge points charge, see {@link Sessions}
  */
 @ConfigurationProperties("chargehub.simulator")
 record SimulatorProperties(
@@ -24,7 +26,8 @@ record SimulatorProperties(
     @DefaultValue ChargePoints chargePoints,
     @DefaultValue("30s") Duration callTimeout,
     @DefaultValue Reconnect reconnect,
-    @DefaultValue Faults faults) {
+    @DefaultValue Faults faults,
+    @DefaultValue Sessions sessions) {
 
   /**
    * @param count how many charge points run, each on its own connection
@@ -100,6 +103,37 @@ record SimulatorProperties(
       long minimum = clockSkewMinimum.toMillis();
       long range = clockSkewMaximum.toMillis() - minimum;
       return Duration.ofMillis(minimum + random.nextLong(range + 1));
+    }
+  }
+
+  /**
+   * The charging sessions every charge point runs, one after the other. The defaults are those of
+   * an 11 kW wall box.
+   *
+   * @param idTags the simulated RFID cards, given to the charge points in turn; empty, no charge
+   *     point charges. The central system accepts only the tags it knows.
+   * @param duration see {@link SessionPlan}
+   * @param idleTime see {@link SessionPlan}
+   * @param powerWatts see {@link SessionPlan}
+   */
+  record Sessions(
+      @DefaultValue List<String> idTags,
+      @DefaultValue("5m") Duration duration,
+      @DefaultValue("1m") Duration idleTime,
+      @DefaultValue("11000") long powerWatts) {
+
+    // A wrong setting stops the simulator at startup: each charge point gets its plan there.
+    Sessions {
+      idTags = List.copyOf(idTags);
+    }
+
+    /** The plan of the charge point at the given position, from 0, or null when none charges. */
+    @Nullable SessionPlan plan(int chargePoint) {
+      if (idTags.isEmpty()) {
+        return null;
+      }
+      return new SessionPlan(
+          idTags.get(chargePoint % idTags.size()), duration, idleTime, powerWatts);
     }
   }
 }

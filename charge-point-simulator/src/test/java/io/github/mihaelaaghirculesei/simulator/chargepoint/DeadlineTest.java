@@ -35,6 +35,15 @@ class DeadlineTest {
   }
 
   @Test
+  void picksTheEarliestOfTwo() {
+    Deadline soon = Deadline.after(Duration.ofSeconds(1));
+    Deadline later = Deadline.after(Duration.ofHours(1));
+
+    assertThat(Deadline.earliest(soon, later)).isSameAs(soon);
+    assertThat(Deadline.earliest(later, soon)).isSameAs(soon);
+  }
+
+  @Test
   void comparesAcrossTheWrapAroundOfNanoTime() {
     Deadline deadline = new Deadline(System.nanoTime() + Long.MAX_VALUE);
 

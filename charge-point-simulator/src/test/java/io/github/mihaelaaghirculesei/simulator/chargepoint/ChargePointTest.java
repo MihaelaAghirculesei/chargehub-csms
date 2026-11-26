@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -242,11 +243,53 @@ class ChargePointTest {
             QUICK_RECONNECT,
             FaultPolicy.NONE,
             1,
-            Clock.fixed(wrongTime, ZoneOffset.UTC)));
+            Clock.fixed(wrongTime, ZoneOffset.UTC),
+            null));
 
     assertThat(nextCall().action()).isEqualTo("BootNotification");
     assertThat(Instant.parse(nextCall().payload().path("timestamp").stringValue()))
         .isEqualTo(wrongTime);
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void chargesBetweenItsHeartbeatsWithTheStatusOfTheConnector() throws Exception {
+    centralSystem.answerBootsWith(300);
+    run(charging(Duration.ofMillis(300)));
+
+    assertThat(actionsUntilAndWith("StopTransaction"))
+        .containsExactly(
+            "BootNotification",
+            "StatusNotification Available",
+            "Authorize",
+            "StatusNotification Preparing",
+            "StartTransaction",
+            "StatusNotification Charging",
+            "StatusNotification Finishing",
+            "StopTransaction");
+    assertThat(actionsUntilAndWith("StartTransaction"))
+        .containsExactly(
+            "StatusNotification Available",
+            "Authorize",
+            "StatusNotification Preparing",
+            "StartTransaction");
+    assertThat(failure.get()).isNull();
+  }
+
+  @Test
+  void goesOnWithItsSessionAfterConnectingAgain() throws Exception {
+    centralSystem.answerBootsWith(300);
+    run(charging(Duration.ofSeconds(1)));
+    actionsUntilAndWith("StatusNotification Charging");
+
+    centralSystem.disconnect();
+
+    assertThat(actionsUntilAndWith("StopTransaction"))
+        .containsExactly(
+            "BootNotification",
+            "StatusNotification Charging",
+            "StatusNotification Finishing",
+            "StopTransaction");
     assertThat(failure.get()).isNull();
   }
 
@@ -262,6 +305,35 @@ class ChargePointTest {
 
     assertThat(chargePoint.isAlive()).isFalse();
     assertThat(failure.get()).isNull();
+  }
+
+  /** A charge point with one connector that charges for the given time, with short pauses. */
+  private ChargePoint charging(Duration duration) {
+    return new ChargePoint(
+        CLIENT,
+        centralSystem.url(),
+        "CP-TEST",
+        WAIT,
+        QUICK_RECONNECT,
+        FaultPolicy.NONE,
+        1,
+        Clock.systemUTC(),
+        new SessionPlan("SIM-TAG", duration, Duration.ofMillis(100), 11_000));
+  }
+
+  /** The actions of the next calls up to the given one, each StatusNotification with its status. */
+  private List<String> actionsUntilAndWith(String last) throws InterruptedException {
+    List<String> actions = new ArrayList<>();
+    String action;
+    do {
+      Call call = nextCall();
+      action =
+          call.action().equals("StatusNotification")
+              ? call.action() + " " + call.payload().path("status").stringValue()
+              : call.action();
+      actions.add(action);
+    } while (!action.equals(last));
+    return actions;
   }
 
   private Call nextCall() throws InterruptedException {

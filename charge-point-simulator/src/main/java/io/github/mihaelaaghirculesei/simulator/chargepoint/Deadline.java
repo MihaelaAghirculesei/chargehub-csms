@@ -15,6 +15,10 @@ record Deadline(long nanoTime) {
     return new Deadline(System.nanoTime() + wait.toNanos());
   }
 
+  static Deadline earliest(Deadline one, Deadline other) {
+    return one.nanoTime - other.nanoTime <= 0 ? one : other;
+  }
+
   /** How long until the deadline, never negative. */
   Duration left() {
     return Duration.ofNanos(Math.max(0, nanoTime - System.nanoTime()));
