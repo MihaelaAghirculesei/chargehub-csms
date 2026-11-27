@@ -26,7 +26,11 @@ class SimulatorPropertiesTest {
   void givesTheIdTagsToTheChargePointsInTurn() {
     Sessions sessions =
         new Sessions(
-            List.of("TAG-A", "TAG-B"), Duration.ofMinutes(5), Duration.ofMinutes(1), 11_000);
+            List.of("TAG-A", "TAG-B"),
+            Duration.ofMinutes(5),
+            Duration.ofMinutes(1),
+            11_000,
+            Duration.ofMinutes(1));
 
     assertThat(Stream.of(0, 1, 2).map(sessions::plan))
         .extracting(plan -> Objects.requireNonNull(plan).idTag())
@@ -36,7 +40,8 @@ class SimulatorPropertiesTest {
   @Test
   void chargesNowhereWithoutIdTags() {
     Sessions sessions =
-        new Sessions(List.of(), Duration.ofMinutes(5), Duration.ofMinutes(1), 11_000);
+        new Sessions(
+            List.of(), Duration.ofMinutes(5), Duration.ofMinutes(1), 11_000, Duration.ofMinutes(1));
 
     assertThat(sessions.plan(0)).isNull();
   }

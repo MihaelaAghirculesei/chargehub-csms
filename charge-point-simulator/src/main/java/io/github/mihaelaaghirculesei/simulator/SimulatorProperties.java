@@ -115,12 +115,14 @@ record SimulatorProperties(
    * @param duration see {@link SessionPlan}
    * @param idleTime see {@link SessionPlan}
    * @param powerWatts see {@link SessionPlan}
+   * @param meterValueInterval see {@link SessionPlan}
    */
   record Sessions(
       @DefaultValue List<String> idTags,
       @DefaultValue("5m") Duration duration,
       @DefaultValue("1m") Duration idleTime,
-      @DefaultValue("11000") long powerWatts) {
+      @DefaultValue("11000") long powerWatts,
+      @DefaultValue("1m") Duration meterValueInterval) {
 
     // A wrong setting stops the simulator at startup: each charge point gets its plan there.
     Sessions {
@@ -133,7 +135,11 @@ record SimulatorProperties(
         return null;
       }
       return new SessionPlan(
-          idTags.get(chargePoint % idTags.size()), duration, idleTime, powerWatts);
+          idTags.get(chargePoint % idTags.size()),
+          duration,
+          idleTime,
+          powerWatts,
+          meterValueInterval);
     }
   }
 }

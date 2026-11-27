@@ -318,7 +318,7 @@ class ChargePointTest {
         FaultPolicy.NONE,
         1,
         Clock.systemUTC(),
-        new SessionPlan("SIM-TAG", duration, Duration.ofMillis(100), 11_000));
+        new SessionPlan("SIM-TAG", duration, Duration.ofMillis(100), 11_000, Duration.ofHours(1)));
   }
 
   /** The actions of the next calls up to the given one, each StatusNotification with its status. */
