@@ -127,8 +127,8 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
 
   /**
    * Answers BootNotification with the given statuses in turn, then with Accepted, Heartbeat with a
-   * fixed time, StatusNotification with its empty answer, and the messages of a charging session
-   * with Accepted and transaction ids from 1.
+   * fixed time, StatusNotification and MeterValues with their empty answer, and the messages of a
+   * charging session with Accepted and transaction ids from 1.
    */
   public void answerBootsWith(int interval, RegistrationStatus... statuses) {
     Queue<RegistrationStatus> pending = new ConcurrentLinkedQueue<>(List.of(statuses));
@@ -144,7 +144,7 @@ public final class FakeCentralSystem extends TextWebSocketHandler implements Aut
                         NOW,
                         interval));
             case "Heartbeat" -> OcppMessages.write(new HeartbeatResponse(NOW));
-            case "StatusNotification" -> JsonNodeFactory.instance.objectNode();
+            case "StatusNotification", "MeterValues" -> JsonNodeFactory.instance.objectNode();
             case "Authorize" -> OcppMessages.write(new AuthorizeResponse(accepted));
             case "StartTransaction" ->
                 OcppMessages.write(

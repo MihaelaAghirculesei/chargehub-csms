@@ -255,7 +255,7 @@ class ChargePointTest {
   @Test
   void chargesBetweenItsHeartbeatsWithTheStatusOfTheConnector() throws Exception {
     centralSystem.answerBootsWith(300);
-    run(charging(Duration.ofMillis(300)));
+    run(charging(Duration.ofMillis(300), Duration.ofMillis(100)));
 
     assertThat(actionsUntilAndWith("StopTransaction"))
         .containsExactly(
@@ -265,6 +265,8 @@ class ChargePointTest {
             "StatusNotification Preparing",
             "StartTransaction",
             "StatusNotification Charging",
+            "MeterValues",
+            "MeterValues",
             "StatusNotification Finishing",
             "StopTransaction");
     assertThat(actionsUntilAndWith("StartTransaction"))
@@ -279,7 +281,7 @@ class ChargePointTest {
   @Test
   void goesOnWithItsSessionAfterConnectingAgain() throws Exception {
     centralSystem.answerBootsWith(300);
-    run(charging(Duration.ofSeconds(1)));
+    run(charging(Duration.ofSeconds(1), Duration.ofHours(1)));
     actionsUntilAndWith("StatusNotification Charging");
 
     centralSystem.disconnect();
@@ -308,7 +310,7 @@ class ChargePointTest {
   }
 
   /** A charge point with one connector that charges for the given time, with short pauses. */
-  private ChargePoint charging(Duration duration) {
+  private ChargePoint charging(Duration duration, Duration meterValueInterval) {
     return new ChargePoint(
         CLIENT,
         centralSystem.url(),
@@ -318,7 +320,7 @@ class ChargePointTest {
         FaultPolicy.NONE,
         1,
         Clock.systemUTC(),
-        new SessionPlan("SIM-TAG", duration, Duration.ofMillis(100), 11_000, Duration.ofHours(1)));
+        new SessionPlan("SIM-TAG", duration, Duration.ofMillis(100), 11_000, meterValueInterval));
   }
 
   /** The actions of the next calls up to the given one, each StatusNotification with its status. */
