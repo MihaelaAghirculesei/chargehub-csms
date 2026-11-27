@@ -10,8 +10,14 @@ import java.time.Duration;
  * @param idleTime the pause before the first session and after each one, and before trying again
  *     when the tag was rejected or no connector was free
  * @param powerWatts the constant power of the charging
+ * @param meterValueInterval how often the energy register is sent while charging
  */
-public record SessionPlan(String idTag, Duration duration, Duration idleTime, long powerWatts) {
+public record SessionPlan(
+    String idTag,
+    Duration duration,
+    Duration idleTime,
+    long powerWatts,
+    Duration meterValueInterval) {
 
   // CiString20Type in OCPP 1.6.
   private static final int ID_TAG_MAX_LENGTH = 20;
@@ -27,10 +33,18 @@ public record SessionPlan(String idTag, Duration duration, Duration idleTime, lo
     if (powerWatts <= 0) {
       throw new IllegalArgumentException("powerWatts must be positive, got " + powerWatts);
     }
+    if (!meterValueInterval.isPositive()) {
+      throw new IllegalArgumentException("meterValueInterval must be positive");
+    }
   }
 
   /** The energy one session delivers, in whole Wh. */
   long energyWattHours() {
-    return powerWatts * duration.toMillis() / Duration.ofHours(1).toMillis();
+    return energyWattHours(duration);
+  }
+
+  /** The energy delivered after charging for the given time, in whole Wh. */
+  long energyWattHours(Duration charged) {
+    return powerWatts * charged.toMillis() / Duration.ofHours(1).toMillis();
   }
 }

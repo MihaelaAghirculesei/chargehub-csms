@@ -7,7 +7,10 @@ import io.github.mihaelaaghirculesei.ocpp.message.AuthorizationStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.AuthorizeResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.ChargePointStatus;
 import io.github.mihaelaaghirculesei.ocpp.message.IdTagInfo;
+import io.github.mihaelaaghirculesei.ocpp.message.MeterValue;
+import io.github.mihaelaaghirculesei.ocpp.message.MeterValuesRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.Reason;
+import io.github.mihaelaaghirculesei.ocpp.message.SampledValue;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionRequest;
 import io.github.mihaelaaghirculesei.ocpp.message.StartTransactionResponse;
 import io.github.mihaelaaghirculesei.ocpp.message.StatusNotificationRequest;
@@ -17,18 +20,21 @@ import io.github.mihaelaaghirculesei.ocpp.payload.Action;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 class ChargingTest {
 
   private static final Instant NOW = Instant.parse("2026-11-26T08:00:00Z");
   private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
-  // 11 kW for 30 minutes delivers 5500 Wh.
+  // 11 kW for 30 minutes delivers 5500 Wh, with readings after 10 and 20 minutes.
   private static final SessionPlan PLAN =
-      new SessionPlan("SIM-TAG", Duration.ofMinutes(30), Duration.ofMinutes(1), 11_000);
+      new SessionPlan(
+          "SIM-TAG", Duration.ofMinutes(30), Duration.ofMinutes(1), 11_000, Duration.ofMinutes(10));
 
   private final Connectors connectors = new Connectors(2);
   private final Charging charging = new Charging("CP-1", PLAN, connectors, CLOCK);
@@ -41,7 +47,7 @@ class ChargingTest {
 
   @Test
   void runsASessionFromAuthorizeToAvailable() throws InterruptedException {
-    List<Duration> waits = steps(8);
+    List<Duration> waits = steps(10);
 
     assertThat(link.sent)
         .containsExactly(
@@ -49,6 +55,8 @@ class ChargingTest {
             "PREPARING",
             "StartTransaction",
             "CHARGING",
+            "MeterValues",
+            "MeterValues",
             "FINISHING",
             "StopTransaction",
             "AVAILABLE",
@@ -58,7 +66,9 @@ class ChargingTest {
             Duration.ZERO,
             Duration.ZERO,
             Duration.ZERO,
-            Duration.ofMinutes(30),
+            Duration.ofMinutes(10),
+            Duration.ofMinutes(10),
+            Duration.ofMinutes(10),
             Duration.ZERO,
             Duration.ZERO,
             Duration.ofMinutes(1),
@@ -77,7 +87,7 @@ class ChargingTest {
 
   @Test
   void startsTheNextSessionWhereTheRegisterStopped() throws InterruptedException {
-    steps(14);
+    steps(18);
 
     assertThat(link.starts)
         .extracting(StartTransactionRequest::meterStart)
@@ -86,6 +96,77 @@ class ChargingTest {
         .extracting(StopTransactionRequest::meterStop)
         .containsExactly(5500L, 11_000L);
     assertThat(link.stops).extracting(StopTransactionRequest::transactionId).containsExactly(1, 2);
+    assertThat(link.readings)
+        .extracting(ChargingTest::energy)
+        .containsExactly("1833", "3666", "7333", "9166");
+  }
+
+  @Test
+  void sendsTheEnergyRegisterOfTheTransactionWhileCharging() throws InterruptedException {
+    steps(9);
+
+    assertThat(link.readings).hasSize(2);
+    MeterValuesRequest reading = link.readings.getFirst();
+    assertThat(reading.connectorId()).isEqualTo(1);
+    assertThat(reading.transactionId()).isEqualTo(1);
+    MeterValue meterValue = reading.meterValue().getFirst();
+    assertThat(meterValue.timestamp()).isEqualTo(NOW);
+    assertThat(meterValue.sampledValue())
+        .containsExactly(
+            new SampledValue(
+                "1833",
+                "Sample.Periodic",
+                null,
+                "Energy.Active.Import.Register",
+                null,
+                null,
+                "Wh"));
+    long meterStop = link.stops.getFirst().meterStop();
+    assertThat(link.readings)
+        .extracting(r -> Long.parseLong(energy(r)))
+        .isSorted()
+        .allSatisfy(wh -> assertThat(wh).isLessThan(meterStop));
+  }
+
+  @Test
+  void sendsNoReadingInASessionShorterThanTheInterval() throws InterruptedException {
+    Charging shortSessions =
+        new Charging(
+            "CP-1",
+            new SessionPlan(
+                "SIM-TAG",
+                Duration.ofMinutes(5),
+                Duration.ofMinutes(1),
+                11_000,
+                Duration.ofMinutes(10)),
+            connectors,
+            CLOCK);
+
+    List<Duration> waits = new ArrayList<>();
+    for (int i = 0; i < 7; i++) {
+      waits.add(shortSessions.step(link));
+    }
+
+    assertThat(link.sent).doesNotContain("MeterValues").endsWith("StopTransaction", "AVAILABLE");
+    assertThat(waits).contains(Duration.ofMinutes(5));
+  }
+
+  @Test
+  void sendsAReadingAgainAsItWasTaken() throws InterruptedException {
+    MovingClock clock = new MovingClock();
+    Charging charging = new Charging("CP-1", PLAN, connectors, clock);
+    for (int i = 0; i < 4; i++) {
+      charging.step(link);
+    }
+    link.failNextCall = true;
+
+    assertThatThrownBy(() -> charging.step(link)).isInstanceOf(SessionFailedException.class);
+    clock.now = NOW.plus(Duration.ofMinutes(5));
+    charging.step(link);
+
+    assertThat(link.readings).extracting(ChargingTest::energy).containsExactly("1833");
+    assertThat(link.readings.getFirst().meterValue().getFirst().timestamp()).isEqualTo(NOW);
+    assertThat(connectors.register(1)).isEqualTo(1833);
   }
 
   @Test
@@ -146,18 +227,35 @@ class ChargingTest {
 
   @Test
   void refusesAPlanThatCannotCharge() {
-    assertThatThrownBy(() -> new SessionPlan("", Duration.ofMinutes(1), Duration.ofMinutes(1), 1))
+    assertThatThrownBy(() ->
+            new SessionPlan(
+                "", Duration.ofMinutes(1), Duration.ofMinutes(1), 1, Duration.ofMinutes(1)))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> new SessionPlan("X".repeat(21), Duration.ofMinutes(1), Duration.ofMinutes(1), 1))
+    assertThatThrownBy(() ->
+            new SessionPlan(
+                "X".repeat(21),
+                Duration.ofMinutes(1),
+                Duration.ofMinutes(1),
+                1,
+                Duration.ofMinutes(1)))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> new SessionPlan("TAG", Duration.ZERO, Duration.ofMinutes(1), 1))
+    assertThatThrownBy(() ->
+            new SessionPlan("TAG", Duration.ZERO, Duration.ofMinutes(1), 1, Duration.ofMinutes(1)))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> new SessionPlan("TAG", Duration.ofMinutes(1), Duration.ZERO, 1))
+    assertThatThrownBy(() ->
+            new SessionPlan("TAG", Duration.ofMinutes(1), Duration.ZERO, 1, Duration.ofMinutes(1)))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> new SessionPlan("TAG", Duration.ofMinutes(1), Duration.ofMinutes(1), 0))
+    assertThatThrownBy(() ->
+            new SessionPlan(
+                "TAG", Duration.ofMinutes(1), Duration.ofMinutes(1), 0, Duration.ofMinutes(1)))
         .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() ->
+            new SessionPlan("TAG", Duration.ofMinutes(1), Duration.ofMinutes(1), 1, Duration.ZERO))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  private static String energy(MeterValuesRequest reading) {
+    return reading.meterValue().getFirst().sampledValue().getFirst().value();
   }
 
   private List<Duration> steps(int count) throws InterruptedException {
@@ -174,6 +272,7 @@ class ChargingTest {
     private final List<String> sent = new ArrayList<>();
     private final List<StartTransactionRequest> starts = new ArrayList<>();
     private final List<StopTransactionRequest> stops = new ArrayList<>();
+    private final List<MeterValuesRequest> readings = new ArrayList<>();
     private AuthorizationStatus authorizeAnswer = AuthorizationStatus.ACCEPTED;
     private AuthorizationStatus startAnswer = AuthorizationStatus.ACCEPTED;
     private boolean failNextCall;
@@ -196,6 +295,10 @@ class ChargingTest {
               stops.add(stop);
               yield new StopTransactionResponse(info(AuthorizationStatus.ACCEPTED));
             }
+            case MeterValuesRequest reading -> {
+              readings.add(reading);
+              yield JsonNodeFactory.instance.objectNode();
+            }
             default -> new AuthorizeResponse(info(authorizeAnswer));
           };
       return responseType.cast(answer);
@@ -212,6 +315,27 @@ class ChargingTest {
 
     private static IdTagInfo info(AuthorizationStatus status) {
       return new IdTagInfo(status, null, null);
+    }
+  }
+
+  /** A clock the test moves by hand. */
+  private static final class MovingClock extends Clock {
+
+    private Instant now = NOW;
+
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Instant instant() {
+      return now;
     }
   }
 }
