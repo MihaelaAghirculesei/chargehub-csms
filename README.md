@@ -118,7 +118,7 @@ Given id tags, the charge points also charge, one session after the other:
 ./gradlew :charge-point-simulator:bootRun --args="--chargehub.simulator.sessions.id-tags=TAG-A,TAG-B"
 ```
 
-The tags go to the charge points in turn, and the central system accepts only the tags it knows. Each session authorizes the tag, starts a transaction, charges at 11 kW for 5 minutes and stops, with a pause of 1 minute before the next one (`chargehub.simulator.sessions.power-watts`, `.duration`, `.idle-time`). The status of the connector follows the session, and its energy register only goes up.
+The tags go to the charge points in turn, and the central system accepts only the tags it knows. Each session authorizes the tag, starts a transaction, charges at 11 kW for 5 minutes and stops, with a pause of 1 minute before the next one (`chargehub.simulator.sessions.power-watts`, `.duration`, `.idle-time`). While charging it sends its energy register every minute (`.meter-value-interval`). The status of the connector follows the session, and its energy register only goes up.
 
 ## Out of scope
 
